@@ -4,6 +4,7 @@ from shutil import rmtree
 from tempfile import NamedTemporaryFile, mkdtemp, mkstemp
 from urllib.error import URLError
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import pytest
 
@@ -88,75 +89,85 @@ def invalid_httpfile():
     return http_fakefile
 
 
+@pytest.mark.thread_unsafe("mkdtemp thread-unsafe?")
 class TestDataSourceOpen:
-    def setup_method(self):
-        self.tmpdir = mkdtemp()
-        self.ds = datasource.DataSource(self.tmpdir)
+    def _create_tmp_path(tmp_path, id):
+        path = tmp_path / str(id)
+        path.mkdir()
+        return path
 
-    def teardown_method(self):
-        rmtree(self.tmpdir)
-        del self.ds
+    def _create_ds(path):
+        return datasource.DataSource(path)
 
-    def test_ValidHTTP(self):
-        fh = self.ds.open(valid_httpurl())
+    def test_ValidHTTP(self, tmp_path):
+        ds = self._create_ds(self._create_tmp_path(tmp_path, uuid4()))
+        fh = ds.open(valid_httpurl())
         assert_(fh)
         fh.close()
+        del ds
 
-    def test_InvalidHTTP(self):
+    def test_InvalidHTTP(self, tmp_path):
+        ds = self._create_ds(self._create_tmp_path(tmp_path, uuid4()))
         url = invalid_httpurl()
-        assert_raises(OSError, self.ds.open, url)
+        assert_raises(OSError, ds.open, url)
         try:
-            self.ds.open(url)
+            ds.open(url)
         except OSError as e:
             # Regression test for bug fixed in r4342.
             assert_(e.errno is None)
+        del ds
 
-    def test_InvalidHTTPCacheURLError(self):
-        assert_raises(URLError, self.ds._cache, invalid_httpurl())
+    def test_InvalidHTTPCacheURLError(self, tmp_path):
+        ds = self._create_ds(self._create_tmp_path(tmp_path, uuid4()))
+        assert_raises(URLError, ds._cache, invalid_httpurl())
+        del ds
 
-    def test_ValidFile(self):
-        local_file = valid_textfile(self.tmpdir)
-        fh = self.ds.open(local_file)
+    def test_ValidFile(self, tmp_path):
+        path = self._create_tmp_path(tmp_path, uuid4())
+        ds = self._create_ds(path)
+        local_file = valid_textfile(path)
+        fh = ds.open(local_file)
         assert_(fh)
         fh.close()
 
-    def test_InvalidFile(self):
-        invalid_file = invalid_textfile(self.tmpdir)
-        assert_raises(OSError, self.ds.open, invalid_file)
+    def test_InvalidFile(self, tmp_dir, ds):
+        invalid_file = invalid_textfile(tmp_dir)
+        assert_raises(OSError, ds.open, invalid_file)
 
-    def test_ValidGzipFile(self):
+    def test_ValidGzipFile(self, tmp_dir, ds):
         try:
             import gzip
         except ImportError:
             # We don't have the gzip capabilities to test.
             pytest.skip()
         # Test datasource's internal file_opener for Gzip files.
-        filepath = os.path.join(self.tmpdir, 'foobar.txt.gz')
+        filepath = os.path.join(tmp_dir, 'foobar.txt.gz')
         fp = gzip.open(filepath, 'w')
         fp.write(magic_line)
         fp.close()
-        fp = self.ds.open(filepath)
+        fp = ds.open(filepath)
         result = fp.readline()
         fp.close()
         assert_equal(magic_line, result)
 
-    def test_ValidBz2File(self):
+    def test_ValidBz2File(self, tmp_dir, ds):
         try:
             import bz2
         except ImportError:
             # We don't have the bz2 capabilities to test.
             pytest.skip()
         # Test datasource's internal file_opener for BZip2 files.
-        filepath = os.path.join(self.tmpdir, 'foobar.txt.bz2')
+        filepath = os.path.join(tmp_dir, 'foobar.txt.bz2')
         fp = bz2.BZ2File(filepath, 'w')
         fp.write(magic_line)
         fp.close()
-        fp = self.ds.open(filepath)
+        fp = ds.open(filepath)
         result = fp.readline()
         fp.close()
         assert_equal(magic_line, result)
 
 
+@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestDataSourceExists:
     def setup_method(self):
         self.tmpdir = mkdtemp()
@@ -187,6 +198,7 @@ class TestDataSourceExists:
         assert_equal(self.ds.exists(tmpfile), False)
 
 
+@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestDataSourceAbspath:
     def setup_method(self):
         self.tmpdir = os.path.abspath(mkdtemp())
@@ -252,6 +264,7 @@ class TestDataSourceAbspath:
             os.sep = orig_os_sep
 
 
+@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestRepositoryAbspath:
     def setup_method(self):
         self.tmpdir = os.path.abspath(mkdtemp())
@@ -285,6 +298,7 @@ class TestRepositoryAbspath:
             os.sep = orig_os_sep
 
 
+@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestRepositoryExists:
     def setup_method(self):
         self.tmpdir = mkdtemp()
@@ -318,6 +332,7 @@ class TestRepositoryExists:
         assert_(self.repos.exists(tmpfile))
 
 
+@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestOpenFunc:
     def setup_method(self):
         self.tmpdir = mkdtemp()

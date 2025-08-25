@@ -8,6 +8,7 @@ import os
 import sys
 from io import StringIO
 from tempfile import NamedTemporaryFile, mkstemp
+from uuid import uuid4
 
 import pytest
 
@@ -1092,7 +1093,7 @@ def test_skiprow_exceeding_maxrows_exceeding_chunksize(tmpdir, nskip):
     assert_array_equal(expected, res[:, 0])
 
     # file-obj path
-    tmp_file = tmpdir / "test_data.txt"
+    tmp_file = tmpdir / f"test_data_{uuid4()}.txt"
     tmp_file.write(data)
     fname = str(tmp_file)
     res = np.loadtxt(fname, dtype='str', delimiter=" ", skiprows=nskip, max_rows=60000)

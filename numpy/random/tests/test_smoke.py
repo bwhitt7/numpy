@@ -132,6 +132,7 @@ class RNG:
             bitgen_name = self.rg.bit_generator.__class__.__name__
             pytest.skip(f'Advance is not supported by {bitgen_name}')
 
+    @pytest.mark.thread_unsafe()
     def test_jump(self):
         state = self.rg.bit_generator.state
         if hasattr(self.rg.bit_generator, 'jumped'):
@@ -535,6 +536,7 @@ class RNG:
         assert_equal(r1.dtype, np.float32)
         assert_(comp_state(rg.bit_generator.state, rg2.bit_generator.state))
 
+    @pytest.mark.thread_unsafe()
     def test_output_fill(self):
         rg = self.rg
         state = rg.bit_generator.state
@@ -557,6 +559,7 @@ class RNG:
         direct = rg.standard_normal(size=size, dtype=np.float32)
         assert_equal(direct, existing)
 
+    @pytest.mark.thread_unsafe()
     def test_output_filling_uniform(self):
         rg = self.rg
         state = rg.bit_generator.state
@@ -575,6 +578,7 @@ class RNG:
         direct = rg.random(size=size, dtype=np.float32)
         assert_equal(direct, existing)
 
+    @pytest.mark.thread_unsafe()
     def test_output_filling_exponential(self):
         rg = self.rg
         state = rg.bit_generator.state
@@ -593,6 +597,7 @@ class RNG:
         direct = rg.standard_exponential(size=size, dtype=np.float32)
         assert_equal(direct, existing)
 
+    @pytest.mark.thread_unsafe()
     def test_output_filling_gamma(self):
         rg = self.rg
         state = rg.bit_generator.state
@@ -611,6 +616,7 @@ class RNG:
         direct = rg.standard_gamma(1.0, size=size, dtype=np.float32)
         assert_equal(direct, existing)
 
+    @pytest.mark.thread_unsafe()
     def test_output_filling_gamma_broadcast(self):
         rg = self.rg
         state = rg.bit_generator.state
@@ -653,6 +659,7 @@ class RNG:
         with pytest.raises(ValueError):
             rg.standard_gamma(1.0, out=existing[::3])
 
+    @pytest.mark.thread_unsafe()
     def test_integers_broadcast(self, dtype):
         if dtype == np.bool:
             upper = 2
@@ -729,6 +736,7 @@ class TestMT19937(RNG):
         cls._extra_setup()
         cls.seed_error = ValueError
 
+    @pytest.mark.thread_unsafe()
     def test_numpy_state(self):
         nprg = np.random.RandomState()
         nprg.standard_normal(99)

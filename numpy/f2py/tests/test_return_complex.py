@@ -6,6 +6,7 @@ from . import util
 
 
 @pytest.mark.slow
+@pytest.mark.thread_unsafe()
 class TestReturnComplex(util.F2PyTest):
     def check_function(self, t, tname):
         if tname in ["t0", "t8", "s0", "s8"]:
@@ -51,6 +52,7 @@ class TestReturnComplex(util.F2PyTest):
             pass
 
 
+@pytest.mark.thread_unsafe()
 class TestFReturnComplex(TestReturnComplex):
     sources = [
         util.getpath("tests", "src", "return_complex", "foo77.f"),

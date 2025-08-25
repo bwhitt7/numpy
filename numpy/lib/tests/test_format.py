@@ -278,6 +278,7 @@ import os
 import sys
 import warnings
 from io import BytesIO
+from uuid import uuid4
 
 import pytest
 
@@ -434,6 +435,12 @@ def assert_equal_(o1, o2):
     assert_(o1 == o2)
 
 
+def _create_tmp_path(tmp_path, id):
+    path = tmp_path / str(id)
+    path.mkdir()
+    return path
+
+
 def test_roundtrip():
     for arr in basic_arrays + record_arrays:
         arr2 = roundtrip(arr)
@@ -452,8 +459,9 @@ def test_roundtrip_truncated():
         if arr.dtype != object:
             assert_raises(ValueError, roundtrip_truncated, arr)
 
+
 def test_file_truncated(tmp_path):
-    path = tmp_path / "a.npy"
+    path = tmp_path / (str(uuid4()) + "_a.npy")
     for arr in basic_arrays:
         if arr.dtype != object:
             with open(path, 'wb') as f:
@@ -486,14 +494,15 @@ def test_long_str():
 
 @pytest.mark.skipif(IS_WASM, reason="memmap doesn't work correctly")
 @pytest.mark.slow
-def test_memmap_roundtrip(tmpdir):
+def test_memmap_roundtrip(tmp_path):
+    path = _create_tmp_path(tmp_path, uuid4())
     for i, arr in enumerate(basic_arrays + record_arrays):
         if arr.dtype.hasobject:
             # Skip these since they can't be mmap'ed.
             continue
         # Write it out normally and through mmap.
-        nfn = os.path.join(tmpdir, f'normal{i}.npy')
-        mfn = os.path.join(tmpdir, f'memmap{i}.npy')
+        nfn = os.path.join(path, f'normal{i}.npy')
+        mfn = os.path.join(path, f'memmap{i}.npy')
         with open(nfn, 'wb') as fp:
             format.write_array(fp, arr)
 
@@ -516,9 +525,10 @@ def test_memmap_roundtrip(tmpdir):
         ma.flush()
 
 
-def test_compressed_roundtrip(tmpdir):
+def test_compressed_roundtrip(tmp_path):
+    path = _create_tmp_path(tmp_path, uuid4())
     arr = np.random.rand(200, 200)
-    npz_file = os.path.join(tmpdir, 'compressed.npz')
+    npz_file = os.path.join(path, 'compressed.npz')
     np.savez_compressed(npz_file, arr=arr)
     with np.load(npz_file) as npz:
         arr1 = npz['arr']
@@ -541,11 +551,12 @@ dt5 = np.dtype({'names': ['a', 'b'], 'formats': ['i4', 'i4'],
 dt6 = np.dtype({'names': [], 'formats': [], 'itemsize': 8})
 
 @pytest.mark.parametrize("dt", [dt1, dt2, dt3, dt4, dt5, dt6])
-def test_load_padded_dtype(tmpdir, dt):
+def test_load_padded_dtype(dt, tmp_path):
+    path = _create_tmp_path(tmp_path, uuid4())
     arr = np.zeros(3, dt)
     for i in range(3):
         arr[i] = i + 5
-    npz_file = os.path.join(tmpdir, 'aligned.npz')
+    npz_file = os.path.join(path, 'aligned.npz')
     np.savez(npz_file, arr=arr)
     with np.load(npz_file) as npz:
         arr1 = npz['arr']
@@ -611,7 +622,7 @@ def test_pickle_python2_python3():
                               encoding='latin1')
 
 
-def test_pickle_disallow(tmpdir):
+def test_pickle_disallow(tmp_path):
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
 
     path = os.path.join(data_dir, 'py2-objarr.npy')
@@ -622,7 +633,7 @@ def test_pickle_disallow(tmpdir):
     with np.load(path, allow_pickle=False, encoding='latin1') as f:
         assert_raises(ValueError, f.__getitem__, 'x')
 
-    path = os.path.join(tmpdir, 'pickle-disabled.npy')
+    path = os.path.join(tmp_path, 'pickle-disabled.npy')
     assert_raises(ValueError, np.save, path, np.array([None], dtype=object),
                   allow_pickle=False)
 
@@ -708,12 +719,13 @@ def test_version_2_0():
 
 
 @pytest.mark.skipif(IS_WASM, reason="memmap doesn't work correctly")
-def test_version_2_0_memmap(tmpdir):
+def test_version_2_0_memmap(tmp_path):
     # requires more than 2 byte for header
+    path = _create_tmp_path(tmp_path, uuid4())
     dt = [(("%d" % i) * 100, float) for i in range(500)]
     d = np.ones(1000, dtype=dt)
-    tf1 = os.path.join(tmpdir, 'version2_01.npy')
-    tf2 = os.path.join(tmpdir, 'version2_02.npy')
+    tf1 = os.path.join(path, 'version2_01.npy')
+    tf2 = os.path.join(path, 'version2_02.npy')
 
     # 1.0 requested but data cannot be saved this way
     assert_raises(ValueError, format.open_memmap, tf1, mode='w+', dtype=d.dtype,
@@ -739,8 +751,9 @@ def test_version_2_0_memmap(tmpdir):
     assert_array_equal(ma, d)
 
 @pytest.mark.parametrize("mmap_mode", ["r", None])
-def test_huge_header(tmpdir, mmap_mode):
-    f = os.path.join(tmpdir, 'large_header.npy')
+def test_huge_header(tmp_path, mmap_mode):
+    path = _create_tmp_path(tmp_path, uuid4())
+    f = os.path.join(path, 'large_header.npy')
     arr = np.array(1, dtype="i," * 10000 + "i")
 
     with pytest.warns(UserWarning, match=".*format 2.0"):
@@ -758,8 +771,9 @@ def test_huge_header(tmpdir, mmap_mode):
     res = np.load(f, mmap_mode=mmap_mode, max_header_size=180000)
     assert_array_equal(res, arr)
 
-def test_huge_header_npz(tmpdir):
-    f = os.path.join(tmpdir, 'large_header.npz')
+def test_huge_header_npz(tmp_path):
+    path = _create_tmp_path(tmp_path, uuid4())
+    f = os.path.join(path, 'large_header.npz')
     arr = np.array(1, dtype="i," * 10000 + "i")
 
     with pytest.warns(UserWarning, match=".*format 2.0"):
@@ -928,11 +942,12 @@ def test_bad_header():
     assert_raises(ValueError, format.read_array_header_1_0, s)
 
 
-def test_large_file_support(tmpdir):
+def test_large_file_support(tmp_path):
     if (sys.platform == 'win32' or sys.platform == 'cygwin'):
         pytest.skip("Unknown if Windows has sparse filesystems")
     # try creating a large sparse file
-    tf_name = os.path.join(tmpdir, 'sparse_file')
+    path = _create_tmp_path(tmp_path, uuid4())
+    tf_name = os.path.join(path, 'sparse_file')
     try:
         # seek past end would work too, but linux truncate somewhat
         # increases the chances that we have a sparse filesystem and can
@@ -957,16 +972,18 @@ def test_large_file_support(tmpdir):
 @pytest.mark.skipif(not IS_64BIT, reason="test requires 64-bit system")
 @pytest.mark.slow
 @requires_memory(free_bytes=2 * 2**30)
-def test_large_archive(tmpdir):
+@pytest.mark.parallel_threads(2)
+def test_large_archive(tmp_path):
     # Regression test for product of saving arrays with dimensions of array
     # having a product that doesn't fit in int32.  See gh-7598 for details.
+    path = _create_tmp_path(tmp_path, uuid4())
     shape = (2**30, 2)
     try:
         a = np.empty(shape, dtype=np.uint8)
     except MemoryError:
         pytest.skip("Could not create large file")
 
-    fname = os.path.join(tmpdir, "large_archive")
+    fname = os.path.join(path, "large_archive")
 
     with open(fname, "wb") as f:
         np.savez(f, arr=a)
@@ -979,16 +996,18 @@ def test_large_archive(tmpdir):
     assert new_a.shape == shape
 
 
-def test_empty_npz(tmpdir):
+def test_empty_npz(tmp_path):
     # Test for gh-9989
-    fname = os.path.join(tmpdir, "nothing.npz")
+    path = _create_tmp_path(tmp_path, uuid4())
+    fname = os.path.join(path, "nothing.npz")
     np.savez(fname)
     with np.load(fname) as nps:
         pass
 
 
-def test_unicode_field_names(tmpdir):
+def test_unicode_field_names(tmp_path):
     # gh-7391
+    path = _create_tmp_path(tmp_path, uuid4())
     arr = np.array([
         (1, 3),
         (1, 2),
@@ -998,7 +1017,7 @@ def test_unicode_field_names(tmpdir):
         ('int', int),
         ('\N{CJK UNIFIED IDEOGRAPH-6574}\N{CJK UNIFIED IDEOGRAPH-5F62}', int)
     ])
-    fname = os.path.join(tmpdir, "unicode.npy")
+    fname = os.path.join(path, "unicode.npy")
     with open(fname, 'wb') as f:
         format.write_array(f, arr, version=(3, 0))
     with open(fname, 'rb') as f:

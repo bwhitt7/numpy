@@ -298,6 +298,7 @@ class TestConcatenate:
         sys.maxsize < 2**32,
         reason="only problematic on 64bit platforms"
     )
+    @pytest.mark.thread_unsafe(reason="Memory issues")
     @requires_memory(2 * np.iinfo(np.intc).max)
     def test_huge_list_error(self):
         a = np.array([1])

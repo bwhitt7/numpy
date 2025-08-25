@@ -16,6 +16,7 @@ class TestAssumedShapeSumExample(util.F2PyTest):
     ]
 
     @pytest.mark.slow
+    @pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
     def test_all(self):
         r = self.module.fsum([1, 2])
         assert r == 3

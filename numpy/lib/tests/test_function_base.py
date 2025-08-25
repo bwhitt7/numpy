@@ -973,53 +973,56 @@ class TestDiff:
 
 
 class TestDelete:
+    @pytest.fixture
+    def array_a(self):
+        return np.arange(5)
 
-    def setup_method(self):
-        self.a = np.arange(5)
-        self.nd_a = np.arange(5).repeat(2).reshape(1, 5, 2)
+    @pytest.fixture
+    def array_nd_a(self):
+        return np.arange(5).repeat(2).reshape(1, 5, 2)
 
-    def _check_inverse_of_slicing(self, indices):
-        a_del = delete(self.a, indices)
-        nd_a_del = delete(self.nd_a, indices, axis=1)
+    def _check_inverse_of_slicing(self, indices, array_a, array_nd_a):
+        a_del = delete(array_a, indices)
+        nd_a_del = delete(array_nd_a, indices, axis=1)
         msg = f'Delete failed for obj: {indices!r}'
-        assert_array_equal(setxor1d(a_del, self.a[indices, ]), self.a,
+        assert_array_equal(setxor1d(a_del, array_a[indices, ]), array_a,
                            err_msg=msg)
-        xor = setxor1d(nd_a_del[0, :, 0], self.nd_a[0, indices, 0])
-        assert_array_equal(xor, self.nd_a[0, :, 0], err_msg=msg)
+        xor = setxor1d(nd_a_del[0, :, 0], array_nd_a[0, indices, 0])
+        assert_array_equal(xor, array_nd_a[0, :, 0], err_msg=msg)
 
-    def test_slices(self):
+    def test_slices(self, array_a, array_nd_a):
         lims = [-6, -2, 0, 1, 2, 4, 5]
         steps = [-3, -1, 1, 3]
         for start in lims:
             for stop in lims:
                 for step in steps:
                     s = slice(start, stop, step)
-                    self._check_inverse_of_slicing(s)
+                    self._check_inverse_of_slicing(s, array_a, array_nd_a)
 
-    def test_fancy(self):
-        self._check_inverse_of_slicing(np.array([[0, 1], [2, 1]]))
+    def test_fancy(self, array_a, array_nd_a):
+        self._check_inverse_of_slicing(np.array([[0, 1], [2, 1]]), array_a, array_nd_a)
         with pytest.raises(IndexError):
-            delete(self.a, [100])
+            delete(array_a, [100])
         with pytest.raises(IndexError):
-            delete(self.a, [-100])
+            delete(array_a, [-100])
 
-        self._check_inverse_of_slicing([0, -1, 2, 2])
+        self._check_inverse_of_slicing([0, -1, 2, 2], array_a, array_nd_a)
 
-        self._check_inverse_of_slicing([True, False, False, True, False])
+        self._check_inverse_of_slicing([True, False, False, True, False], array_a, array_nd_a)
 
         # not legal, indexing with these would change the dimension
         with pytest.raises(ValueError):
-            delete(self.a, True)
+            delete(array_a, True)
         with pytest.raises(ValueError):
-            delete(self.a, False)
+            delete(array_a, False)
 
         # not enough items
         with pytest.raises(ValueError):
-            delete(self.a, [False] * 4)
+            delete(array_a, [False] * 4)
 
-    def test_single(self):
-        self._check_inverse_of_slicing(0)
-        self._check_inverse_of_slicing(-4)
+    def test_single(self, array_a, array_nd_a):
+        self._check_inverse_of_slicing(0, array_a, array_nd_a)
+        self._check_inverse_of_slicing(-4, array_a, array_nd_a)
 
     def test_0d(self):
         a = np.array(1)
@@ -1028,10 +1031,10 @@ class TestDelete:
         with pytest.raises(TypeError):
             delete(a, [], axis="nonsense")
 
-    def test_subclass(self):
+    def test_subclass(self, array_a):
         class SubClass(np.ndarray):
             pass
-        a = self.a.view(SubClass)
+        a = array_a.view(SubClass)
         assert_(isinstance(delete(a, 0), SubClass))
         assert_(isinstance(delete(a, []), SubClass))
         assert_(isinstance(delete(a, [0, 1]), SubClass))
@@ -1055,13 +1058,13 @@ class TestDelete:
             np.delete([0, 1, 2], np.array([], dtype=float))
 
     @pytest.mark.parametrize("indexer", [np.array([1]), [1]])
-    def test_single_item_array(self, indexer):
-        a_del_int = delete(self.a, 1)
-        a_del = delete(self.a, indexer)
+    def test_single_item_array(self, indexer, array_a, array_nd_a):
+        a_del_int = delete(array_a, 1)
+        a_del = delete(array_a, indexer)
         assert_equal(a_del_int, a_del)
 
-        nd_a_del_int = delete(self.nd_a, 1, axis=1)
-        nd_a_del = delete(self.nd_a, np.array([1]), axis=1)
+        nd_a_del_int = delete(array_nd_a, 1, axis=1)
+        nd_a_del = delete(array_nd_a, np.array([1]), axis=1)
         assert_equal(nd_a_del_int, nd_a_del)
 
     def test_single_item_array_non_int(self):
@@ -1167,6 +1170,7 @@ class TestGradient:
         np.gradient(x2, edge_order=2)
         assert_array_equal(x2.mask, [False, False, True, False, False])
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_second_order_accurate(self):
         # Testing that the relative numerical error is less that 3% for
         # this example problem. This corresponds to second order
@@ -2050,6 +2054,7 @@ class TestLeaks:
             ('bound', A.iters),
             ('unbound', 0),
             ])
+    @pytest.mark.thread_unsafe(reason="sys.getrefcount()")
     def test_frompyfunc_leaks(self, name, incr):
         # exposed in gh-11867 as np.vectorized, but the problem stems from
         # frompyfunc.
@@ -3959,6 +3964,7 @@ class TestQuantile:
                        shape=st.integers(min_value=3, max_value=1000),
                        elements=st.floats(allow_infinity=False, allow_nan=False,
                                           min_value=-1e300, max_value=1e300)))
+    @pytest.mark.thread_unsafe("hypothesis bug?")
     def test_quantile_monotonic_hypo(self, arr):
         p0 = np.arange(0, 1, 0.01)
         quantile = np.quantile(arr, p0)

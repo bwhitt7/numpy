@@ -201,6 +201,8 @@ class TestSaveLoad(RoundtripTest):
         assert_equal(self.arr[0].flags.fnc, self.arr_reloaded.flags.fnc)
 
 
+@pytest.mark.thread_unsafe(reason="Some test fail from RountripTest, file race?")
+#test_array, test_array_object, test_mmap, test_record, test_format_2_0
 class TestSavezLoad(RoundtripTest):
     def roundtrip(self, *args, **kwargs):
         RoundtripTest.roundtrip(self, np.savez, *args, **kwargs)
@@ -235,6 +237,7 @@ class TestSavezLoad(RoundtripTest):
     @pytest.mark.skipif(IS_PYPY, reason="Hangs on PyPy")
     @pytest.mark.skipif(not IS_64BIT, reason="Needs 64bit platform")
     @pytest.mark.slow
+    @pytest.mark.thread_unsafe(reason="Memory issues")
     def test_big_arrays(self):
         L = (1 << 31) + 100000
         a = np.empty(L, dtype=np.uint8)
@@ -630,6 +633,7 @@ class TestSaveTxt:
     @pytest.mark.skipif(sys.platform == 'win32', reason="files>4GB may not work")
     @pytest.mark.slow
     @requires_memory(free_bytes=7e9)
+    @pytest.mark.thread_unsafe(reason="Memory issues")
     def test_large_zip(self):
         def check_large_zip(memoryerror_raised):
             memoryerror_raised.value = False
@@ -1731,6 +1735,7 @@ M   33  21.99
             test = np.genfromtxt(TextIO(data), delimiter=";",
                                  dtype=ndtype, converters=converters)
 
+    @pytest.mark.thread_unsafe()
     def test_dtype_with_object_no_converter(self):
         # Object without a converter uses bytes:
         parsed = np.genfromtxt(TextIO("1"), dtype=object)
@@ -2806,6 +2811,7 @@ def test_npzfile_dict():
 
 
 @pytest.mark.skipif(not HAS_REFCOUNT, reason="Python lacks refcounts")
+@pytest.mark.thread_unsafe(reason="Looking at global gb?")
 def test_load_refcount():
     # Check that objects returned by np.load are directly freed based on
     # their refcount, rather than needing the gc to collect them.

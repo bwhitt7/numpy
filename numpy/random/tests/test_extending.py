@@ -5,6 +5,7 @@ import sys
 import sysconfig
 import warnings
 from importlib.util import module_from_spec, spec_from_file_location
+from uuid import uuid4
 
 import pytest
 
@@ -61,8 +62,9 @@ def test_cython(tmp_path):
     import glob
     # build the examples in a temporary directory
     srcdir = os.path.join(os.path.dirname(__file__), '..')
-    shutil.copytree(srcdir, tmp_path / 'random')
-    build_dir = tmp_path / 'random' / '_examples' / 'cython'
+    path = tmp_path / str(uuid4())
+    shutil.copytree(srcdir, path / 'random')
+    build_dir = path / 'random' / '_examples' / 'cython'
     target_dir = build_dir / "build"
     os.makedirs(target_dir, exist_ok=True)
     # Ensure we use the correct Python interpreter even when `meson` is

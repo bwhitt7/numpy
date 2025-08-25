@@ -2386,6 +2386,7 @@ class TestRegression:
                 assert_equal(squeezed, scvalue)
                 assert_equal(type(squeezed), type(scvalue))
 
+    @pytest.mark.thread_unsafe(reason="Immortal string, issue with ref count?")
     def test_field_access_by_title(self):
         # gh-11507
         s = 'Some long field name'

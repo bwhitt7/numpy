@@ -1324,6 +1324,7 @@ class TestDTypeMakeCanonical:
         assert np.can_cast(two_arg_result, canonical, casting="no")
 
     @pytest.mark.slow
+    @pytest.mark.thread_unsafe(reason="Test gives unreliable results w/ hypothesis")
     @hypothesis.given(
             dtype=hypothesis.extra.numpy.array_dtypes(
                 subtype_strategy=hypothesis.extra.numpy.array_dtypes(),

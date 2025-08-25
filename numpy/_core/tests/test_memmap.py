@@ -30,6 +30,7 @@ from numpy.testing import (
 )
 
 
+@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestMemmap:
     def setup_method(self):
         self.tmpfp = NamedTemporaryFile(prefix='mmap')

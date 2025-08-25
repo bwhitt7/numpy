@@ -48,6 +48,7 @@ class TestRegression:
         msg = f'Frequency was {freq:f}, should be < 0.23'
         assert_(freq < 0.23, msg)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_shuffle_mixed_dimension(self):
         # Test for trac ticket #2074
         for t in [[1, 2, 3, None],
@@ -127,6 +128,7 @@ class TestRegression:
         import gc
         gc.collect()
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_permutation_subclass(self):
         class N(np.ndarray):
             pass
@@ -174,6 +176,7 @@ class TestRegression:
 
     @pytest.mark.skipif(np.iinfo('l').max < 2**32,
                         reason='Cannot test with 32-bit C long')
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_randint_117(self):
         # GH 14189
         random.seed(0)
@@ -183,6 +186,7 @@ class TestRegression:
         actual = random.randint(2**32, size=10)
         assert_array_equal(actual, expected)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_p_zero_stream(self):
         # Regression test for gh-14522.  Ensure that future versions
         # generate the same variates as version 1.16.
@@ -190,6 +194,7 @@ class TestRegression:
         assert_array_equal(random.binomial(1, [0, 0.25, 0.5, 0.75, 1]),
                            [0, 0, 0, 1, 1])
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_n_zero_stream(self):
         # Regression test for gh-14522.  Ensure that future versions
         # generate the same variates as version 1.16.

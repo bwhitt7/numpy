@@ -14,6 +14,7 @@ from numpy.testing import IS_PYPY
 from . import util
 
 
+@pytest.mark.thread_unsafe()
 class TestF77Callback(util.F2PyTest):
     sources = [util.getpath("tests", "src", "callback", "foo.f")]
 
@@ -210,6 +211,7 @@ class TestF90Callback(util.F2PyTest):
     sources = [util.getpath("tests", "src", "callback", "gh17797.f90")]
 
     @pytest.mark.slow
+    @pytest.mark.thread_unsafe()
     def test_gh17797(self):
         def incr(x):
             return x + 123
@@ -228,6 +230,7 @@ class TestGH18335(util.F2PyTest):
     sources = [util.getpath("tests", "src", "callback", "gh18335.f90")]
 
     @pytest.mark.slow
+    @pytest.mark.thread_unsafe()
     def test_gh18335(self):
         def foo(x):
             x[0] += 1
@@ -241,6 +244,7 @@ class TestGH25211(util.F2PyTest):
                util.getpath("tests", "src", "callback", "gh25211.pyf")]
     module_name = "callback2"
 
+    @pytest.mark.thread_unsafe()
     def test_gh25211(self):
         def bar(x):
             return x * x
@@ -253,6 +257,7 @@ class TestGH25211(util.F2PyTest):
 @pytest.mark.xfail(condition=(platform.system().lower() == 'darwin'),
                    run=False,
                    reason="Callback aborts cause CI failures on macOS")
+@pytest.mark.thread_unsafe()
 class TestCBFortranCallstatement(util.F2PyTest):
     sources = [util.getpath("tests", "src", "callback", "gh26681.f90")]
     options = ['--lower']

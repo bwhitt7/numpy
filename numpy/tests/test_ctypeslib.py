@@ -252,6 +252,7 @@ class TestAsArray:
         check(as_array(pointer(c_array[0]), shape=(2,)))
         check(as_array(pointer(c_array[0][0]), shape=(2, 3)))
 
+    @pytest.mark.thread_unsafe(reason="assert_no_gc_cycles?")
     def test_reference_cycles(self):
         # related to gh-6511
         import ctypes

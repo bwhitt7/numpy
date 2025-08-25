@@ -124,9 +124,10 @@ class AbstractTest:
         " therefore this test class cannot be properly executed."
     ),
 )
+#@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestEnvPrivation:
     cwd = pathlib.Path(__file__).parent.resolve()
-    env = os.environ.copy()
+    #env = os.environ.copy()
     _enable = os.environ.pop('NPY_ENABLE_CPU_FEATURES', None)
     _disable = os.environ.pop('NPY_DISABLE_CPU_FEATURES', None)
     SUBPROCESS_ARGS = {"cwd": cwd, "capture_output": True, "text": True, "check": True}
@@ -152,17 +153,17 @@ if __name__ == "__main__":
     main()
     """
 
-    @pytest.fixture(autouse=True)
-    def setup_class(self, tmp_path_factory):
-        file = tmp_path_factory.mktemp("runtime_test_script")
-        file /= "_runtime_detect.py"
-        file.write_text(self.SCRIPT)
-        self.file = file
+    @pytest.fixture(scope="class")
+    def file(self, tmp_path_factory):
+        f = tmp_path_factory.mktemp("runtime_test_script")
+        f /= "_runtime_detect.py"
+        f.write_text(self.SCRIPT)
+        return f
 
-    def _run(self):
+    def _run(self, file, env):
         return subprocess.run(
-            [sys.executable, self.file],
-            env=self.env,
+            [sys.executable, file],
+            env=env,
             **self.SUBPROCESS_ARGS,
             )
 
@@ -171,10 +172,12 @@ if __name__ == "__main__":
         self,
         msg,
         err_type,
+        file,
+        environment,
         no_error_msg="Failed to generate error"
     ):
         try:
-            self._run()
+            self._run(file, environment)
         except subprocess.CalledProcessError as e:
             assertion_message = f"Expected: {msg}\nGot: {e.stderr}"
             assert re.search(msg, e.stderr), assertion_message
@@ -187,18 +190,18 @@ if __name__ == "__main__":
         else:
             assert False, no_error_msg
 
-    def setup_method(self):
+    def _set_env(self):
         """Ensure that the environment is reset"""
-        self.env = os.environ.copy()
+        return os.environ.copy()
 
-    def test_runtime_feature_selection(self):
+    def test_runtime_feature_selection(self, file):
         """
         Ensure that when selecting `NPY_ENABLE_CPU_FEATURES`, only the
         features exactly specified are dispatched.
         """
-
+        env = self._set_env()
         # Capture runtime-enabled features
-        out = self._run()
+        out = self._run(file, env)
         non_baseline_features = _text_to_list(out.stdout)
 
         if non_baseline_features is None:
@@ -209,8 +212,8 @@ if __name__ == "__main__":
 
         # Capture runtime-enabled features when `NPY_ENABLE_CPU_FEATURES` is
         # specified
-        self.env['NPY_ENABLE_CPU_FEATURES'] = feature
-        out = self._run()
+        env['NPY_ENABLE_CPU_FEATURES'] = feature
+        out = self._run(file, env)
         enabled_features = _text_to_list(out.stdout)
 
         # Ensure that only one feature is enabled, and it is exactly the one
@@ -221,8 +224,8 @@ if __name__ == "__main__":
             pytest.skip("Only one non-baseline feature detected.")
         # Capture runtime-enabled features when `NPY_ENABLE_CPU_FEATURES` is
         # specified
-        self.env['NPY_ENABLE_CPU_FEATURES'] = ",".join(non_baseline_features)
-        out = self._run()
+        env['NPY_ENABLE_CPU_FEATURES'] = ",".join(non_baseline_features)
+        out = self._run(file, env)
         enabled_features = _text_to_list(out.stdout)
 
         # Ensure that both features are enabled, and they are exactly the ones
@@ -234,16 +237,17 @@ if __name__ == "__main__":
         ("feature", "feature"),
         ("feature", "same"),
     ])
-    def test_both_enable_disable_set(self, enabled, disabled):
+    def test_both_enable_disable_set(self, enabled, disabled, file):
         """
         Ensure that when both environment variables are set then an
         ImportError is thrown
         """
-        self.env['NPY_ENABLE_CPU_FEATURES'] = enabled
-        self.env['NPY_DISABLE_CPU_FEATURES'] = disabled
+        env = self._set_env()
+        env['NPY_ENABLE_CPU_FEATURES'] = enabled
+        env['NPY_DISABLE_CPU_FEATURES'] = disabled
         msg = "Both NPY_DISABLE_CPU_FEATURES and NPY_ENABLE_CPU_FEATURES"
         err_type = "ImportError"
-        self._expect_error(msg, err_type)
+        self._expect_error(msg, err_type, file, env)
 
     @pytest.mark.skipif(
         not __cpu_dispatch__,
@@ -253,20 +257,21 @@ if __name__ == "__main__":
         )
     )
     @pytest.mark.parametrize("action", ["ENABLE", "DISABLE"])
-    def test_variable_too_long(self, action):
+    def test_variable_too_long(self, action, file):
         """
         Test that an error is thrown if the environment variables are too long
         to be processed. Current limit is 1024, but this may change later.
         """
         MAX_VAR_LENGTH = 1024
+        env = self._set_env()
         # Actual length is MAX_VAR_LENGTH + 1 due to null-termination
-        self.env[f'NPY_{action}_CPU_FEATURES'] = "t" * MAX_VAR_LENGTH
+        env[f'NPY_{action}_CPU_FEATURES'] = "t" * MAX_VAR_LENGTH
         msg = (
             f"Length of environment variable 'NPY_{action}_CPU_FEATURES' is "
             f"{MAX_VAR_LENGTH + 1}, only {MAX_VAR_LENGTH} accepted"
         )
         err_type = "RuntimeError"
-        self._expect_error(msg, err_type)
+        self._expect_error(msg, err_type, file, env)
 
     @pytest.mark.skipif(
         not __cpu_dispatch__,
@@ -275,59 +280,61 @@ if __name__ == "__main__":
             "`__cpu_dispatch__` is non-empty"
         )
     )
-    def test_impossible_feature_disable(self):
+    def test_impossible_feature_disable(self, file):
         """
         Test that a RuntimeError is thrown if an impossible feature-disabling
         request is made. This includes disabling a baseline feature.
         """
+        env = self._set_env()
 
         if self.BASELINE_FEAT is None:
             pytest.skip("There are no unavailable features to test with")
         bad_feature = self.BASELINE_FEAT
-        self.env['NPY_DISABLE_CPU_FEATURES'] = bad_feature
+        env['NPY_DISABLE_CPU_FEATURES'] = bad_feature
         msg = (
             f"You cannot disable CPU feature '{bad_feature}', since it is "
             "part of the baseline optimizations"
         )
         err_type = "RuntimeError"
-        self._expect_error(msg, err_type)
+        self._expect_error(msg, err_type, file, env)
 
-    def test_impossible_feature_enable(self):
+    def test_impossible_feature_enable(self, file):
         """
         Test that a RuntimeError is thrown if an impossible feature-enabling
         request is made. This includes enabling a feature not supported by the
         machine, or disabling a baseline optimization.
         """
+        env = self._set_env()
 
         if self.UNAVAILABLE_FEAT is None:
             pytest.skip("There are no unavailable features to test with")
         bad_feature = self.UNAVAILABLE_FEAT
-        self.env['NPY_ENABLE_CPU_FEATURES'] = bad_feature
+        env['NPY_ENABLE_CPU_FEATURES'] = bad_feature
         msg = (
             f"You cannot enable CPU features \\({bad_feature}\\), since "
             "they are not supported by your machine."
         )
         err_type = "RuntimeError"
-        self._expect_error(msg, err_type)
+        self._expect_error(msg, err_type, file, env)
 
         # Ensure that it fails even when providing garbage in addition
         feats = f"{bad_feature}, Foobar"
-        self.env['NPY_ENABLE_CPU_FEATURES'] = feats
+        env['NPY_ENABLE_CPU_FEATURES'] = feats
         msg = (
             f"You cannot enable CPU features \\({bad_feature}\\), since they "
             "are not supported by your machine."
         )
-        self._expect_error(msg, err_type)
+        self._expect_error(msg, err_type, file, env)
 
         if self.BASELINE_FEAT is not None:
             # Ensure that only the bad feature gets reported
             feats = f"{bad_feature}, {self.BASELINE_FEAT}"
-            self.env['NPY_ENABLE_CPU_FEATURES'] = feats
+            env['NPY_ENABLE_CPU_FEATURES'] = feats
             msg = (
                 f"You cannot enable CPU features \\({bad_feature}\\), since "
                 "they are not supported by your machine."
             )
-            self._expect_error(msg, err_type)
+            self._expect_error(msg, err_type, file, env)
 
 
 is_linux = sys.platform.startswith('linux')
