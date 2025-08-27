@@ -1,7 +1,3 @@
-from uuid import uuid4
-
-import pytest
-
 import numpy as np
 import numpy.ma as ma
 from numpy.lib.recfunctions import (
@@ -34,6 +30,8 @@ zip_dtype = np.lib.recfunctions._zip_dtype
 
 class TestRecFunctions:
     # Misc tests
+    def test_zip_descr(self):
+        # Test zip_descr
     def test_zip_descr(self):
         # Test zip_descr
         x = np.array([1, 2, ])
@@ -446,7 +444,7 @@ class TestRecursiveFillFields:
 class TestMergeArrays:
     # Test merge_arrays
 
-    def _create_data(self):
+    def _create_arrays(self):
         x = np.array([1, 2, ])
         y = np.array([10, 20, 30])
         z = np.array(
@@ -454,11 +452,11 @@ class TestMergeArrays:
         w = np.array(
             [(1, (2, 3.0, ())), (4, (5, 6.0, ()))],
             dtype=[('a', int), ('b', [('ba', float), ('bb', int), ('bc', [])])])
-        return (w, x, y, z)
+        return w, x, y, z
 
     def test_solo(self):
         # Test merge_arrays on a single array.
-        (_, x, _, z) = self._create_data()
+        _, x, _, z = self._create_arrays()
 
         test = merge_arrays(x)
         control = np.array([(1,), (2,)], dtype=[('f0', int)])
@@ -473,7 +471,7 @@ class TestMergeArrays:
 
     def test_solo_w_flatten(self):
         # Test merge_arrays on a single array w & w/o flattening
-        w = self._create_data()[0]
+        w = self._create_arrays()[0]
         test = merge_arrays(w, flatten=False)
         assert_equal(test, w)
 
@@ -485,7 +483,7 @@ class TestMergeArrays:
     def test_standard(self):
         # Test standard & standard
         # Test merge arrays
-        (_, x, y, _) = self._create_data()
+        _, x, y, _ = self._create_arrays()
         test = merge_arrays((x, y), usemask=False)
         control = np.array([(1, 10), (2, 20), (-1, 30)],
                            dtype=[('f0', int), ('f1', int)])
@@ -500,7 +498,7 @@ class TestMergeArrays:
 
     def test_flatten(self):
         # Test standard & flexible
-        (_, x, _, z) = self._create_data()
+        _, x, _, z = self._create_arrays()
         test = merge_arrays((x, z), flatten=True)
         control = np.array([(1, 'A', 1.), (2, 'B', 2.)],
                            dtype=[('f0', int), ('A', '|S3'), ('B', float)])
@@ -514,7 +512,7 @@ class TestMergeArrays:
 
     def test_flatten_wflexible(self):
         # Test flatten standard & nested
-        (w, x, _, _) = self._create_data()
+        w, x, _, _ = self._create_arrays()
         test = merge_arrays((x, w), flatten=True)
         control = np.array([(1, 1, 2, 3.0), (2, 4, 5, 6.0)],
                            dtype=[('f0', int),
@@ -530,7 +528,7 @@ class TestMergeArrays:
 
     def test_wmasked_arrays(self):
         # Test merge_arrays masked arrays
-        (_, x, _, _) = self._create_data()
+        x = self._create_arrays()[1]
         mx = ma.array([1, 2, 3], mask=[1, 0, 0])
         test = merge_arrays((x, mx), usemask=True)
         control = ma.array([(1, 1), (2, 2), (-1, 3)],
@@ -552,7 +550,7 @@ class TestMergeArrays:
 
     def test_w_shorter_flex(self):
         # Test merge_arrays w/ a shorter flexndarray.
-        z = self._create_data()[-1]
+        z = self._create_arrays()[-1]
 
         # Fixme, this test looks incomplete and broken
         #test = merge_arrays((z, np.array([10, 20, 30]).view([('C', int)])))
@@ -565,7 +563,7 @@ class TestMergeArrays:
                  dtype=[('A', '|S3'), ('B', float), ('C', int)])
 
     def test_singlerecord(self):
-        (_, x, y, z) = self._create_data()
+        _, x, y, z = self._create_arrays()
         test = merge_arrays((x[0], y[0], z[0]), usemask=False)
         control = np.array([(1, 10, ('A', 1))],
                            dtype=[('f0', int),
@@ -577,18 +575,18 @@ class TestMergeArrays:
 class TestAppendFields:
     # Test append_fields
 
-    def _create_data(self):
+    def _create_arrays(self):
         x = np.array([1, 2, ])
         y = np.array([10, 20, 30])
         z = np.array(
             [('A', 1.), ('B', 2.)], dtype=[('A', '|S3'), ('B', float)])
         w = np.array([(1, (2, 3.0)), (4, (5, 6.0))],
                      dtype=[('a', int), ('b', [('ba', float), ('bb', int)])])
-        return (w, x, y, z)
+        return w, x, y, z
 
     def test_append_single(self):
         # Test simple case
-        (_, x, _, _) = self._create_data()
+        x = self._create_arrays()[1]
         test = append_fields(x, 'A', data=[10, 20, 30])
         control = ma.array([(1, 10), (2, 20), (-1, 30)],
                            mask=[(0, 0), (0, 0), (1, 0)],
@@ -597,7 +595,7 @@ class TestAppendFields:
 
     def test_append_double(self):
         # Test simple case
-        (_, x, _, _) = self._create_data()
+        x = self._create_arrays()[1]
         test = append_fields(x, ('A', 'B'), data=[[10, 20, 30], [100, 200]])
         control = ma.array([(1, 10, 100), (2, 20, 200), (-1, 30, -1)],
                            mask=[(0, 0, 0), (0, 0, 0), (1, 0, 1)],
@@ -606,7 +604,7 @@ class TestAppendFields:
 
     def test_append_on_flex(self):
         # Test append_fields on flexible type arrays
-        z = self._create_data()[-1]
+        z = self._create_arrays()[-1]
         test = append_fields(z, 'C', data=[10, 20, 30])
         control = ma.array([('A', 1., 10), ('B', 2., 20), (-1, -1., 30)],
                            mask=[(0, 0, 0), (0, 0, 0), (1, 1, 0)],
@@ -615,7 +613,7 @@ class TestAppendFields:
 
     def test_append_on_nested(self):
         # Test append_fields on nested fields
-        w = self._create_data()[0]
+        w = self._create_arrays()[0]
         test = append_fields(w, 'C', data=[10, 20, 30])
         control = ma.array([(1, (2, 3.0), 10),
                             (4, (5, 6.0), 20),
@@ -630,18 +628,18 @@ class TestAppendFields:
 
 class TestStackArrays:
     # Test stack_arrays
-    def _create_data(self):
+    def _create_arrays(self):
         x = np.array([1, 2, ])
         y = np.array([10, 20, 30])
         z = np.array(
             [('A', 1.), ('B', 2.)], dtype=[('A', '|S3'), ('B', float)])
         w = np.array([(1, (2, 3.0)), (4, (5, 6.0))],
                      dtype=[('a', int), ('b', [('ba', float), ('bb', int)])])
-        return (w, x, y, z)
+        return w, x, y, z
 
     def test_solo(self):
         # Test stack_arrays on single arrays
-        (_, x, _, _) = self._create_data()
+        x = self._create_arrays()[1]
         test = stack_arrays((x,))
         assert_equal(test, x)
         assert_(test is x)
@@ -652,7 +650,7 @@ class TestStackArrays:
 
     def test_unnamed_fields(self):
         # Tests combinations of arrays w/o named fields
-        (_, x, y, _) = self._create_data()
+        _, x, y, _ = self._create_arrays()
 
         test = stack_arrays((x, x), usemask=False)
         control = np.array([1, 2, 1, 2])
@@ -668,7 +666,7 @@ class TestStackArrays:
 
     def test_unnamed_and_named_fields(self):
         # Test combination of arrays w/ & w/o named fields
-        (_, x, _, z) = self._create_data()
+        _, x, _, z = self._create_arrays()
 
         test = stack_arrays((x, z))
         control = ma.array([(1, -1, -1), (2, -1, -1),
@@ -700,7 +698,7 @@ class TestStackArrays:
 
     def test_matching_named_fields(self):
         # Test combination of arrays w/ matching field names
-        (_, x, _, z) = self._create_data()
+        _, x, _, z = self._create_arrays()
         zz = np.array([('a', 10., 100.), ('b', 20., 200.), ('c', 30., 300.)],
                       dtype=[('A', '|S3'), ('B', float), ('C', float)])
         test = stack_arrays((z, zz))
@@ -728,7 +726,7 @@ class TestStackArrays:
 
     def test_defaults(self):
         # Test defaults: no exception raised if keys of defaults are not fields.
-        (_, _, _, z) = self._create_data()
+        z = self._create_arrays()[-1]
         zz = np.array([('a', 10., 100.), ('b', 20., 200.), ('c', 30., 300.)],
                       dtype=[('A', '|S3'), ('B', float), ('C', float)])
         defaults = {'A': '???', 'B': -999., 'C': -9999., 'D': -99999.}
@@ -802,16 +800,19 @@ class TestStackArrays:
 class TestJoinBy:
     def _create_arrays(self):
         a = np.array(list(zip(np.arange(10), np.arange(50, 60),
+    def _create_arrays(self):
+        a = np.array(list(zip(np.arange(10), np.arange(50, 60),
                                    np.arange(100, 110))),
                           dtype=[('a', int), ('b', int), ('c', int)])
         b = np.array(list(zip(np.arange(5, 15), np.arange(65, 75),
+        b = np.array(list(zip(np.arange(5, 15), np.arange(65, 75),
                                    np.arange(100, 110))),
                           dtype=[('a', int), ('b', int), ('d', int)])
-        return (a, b)
+        return a, b
 
     def test_inner_join(self):
         # Basic test of join_by
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         test = join_by('a', a, b, jointype='inner')
         control = np.array([(5, 55, 65, 105, 100), (6, 56, 66, 106, 101),
                             (7, 57, 67, 107, 102), (8, 58, 68, 108, 103),
@@ -821,6 +822,7 @@ class TestJoinBy:
         assert_equal(test, control)
 
     def test_join(self):
+        a, b = self._create_arrays()
         # Fixme, this test is broken
         #test = join_by(('a', 'b'), a, b)
         #control = np.array([(5, 55, 105, 100), (6, 56, 106, 101),
@@ -829,7 +831,6 @@ class TestJoinBy:
         #                   dtype=[('a', int), ('b', int),
         #                          ('c', int), ('d', int)])
         #assert_equal(test, control)
-        (a, b) = self._create_arrays()
         join_by(('a', 'b'), a, b)
         np.array([(5, 55, 105, 100), (6, 56, 106, 101),
                   (7, 57, 107, 102), (8, 58, 108, 103),
@@ -847,7 +848,7 @@ class TestJoinBy:
         assert_equal(res, bar.view(ma.MaskedArray))
 
     def test_outer_join(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         test = join_by(('a', 'b'), a, b, 'outer')
         control = ma.array([(0, 50, 100, -1), (1, 51, 101, -1),
                             (2, 52, 102, -1), (3, 53, 103, -1),
@@ -874,7 +875,7 @@ class TestJoinBy:
         assert_equal(test, control)
 
     def test_leftouter_join(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         test = join_by(('a', 'b'), a, b, 'leftouter')
         control = ma.array([(0, 50, 100, -1), (1, 51, 101, -1),
                             (2, 52, 102, -1), (3, 53, 103, -1),
@@ -1024,6 +1025,7 @@ class TestJoinBy2:
         assert_equal(test, control)
 
 
+
 class TestAppendFieldsObj:
     """
     Test append_fields with arrays containing objects
@@ -1032,6 +1034,8 @@ class TestAppendFieldsObj:
 
     def test_append_to_objects(self):
         "Test append_fields when the base array contains objects"
+        from datetime import date
+        obj = date(2000, 1, 1)
         from datetime import date
         obj = date(2000, 1, 1)
         x = np.array([(obj, 1.), (obj, 2.)],
