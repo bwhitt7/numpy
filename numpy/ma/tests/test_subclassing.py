@@ -345,6 +345,7 @@ class TestSubclassing:
         assert_(isinstance(mxcsub_nomask[1], ComplicatedSubArray))
         assert_(isinstance(mxcsub_nomask[0], ComplicatedSubArray))
 
+    @pytest.mark.thread_unsafe
     def test_subclass_repr(self):
         """test that repr uses the name of the subclass
         and 'array' for np.ndarray"""
@@ -356,6 +357,7 @@ class TestSubclassing:
         assert_startswith(repr(mxsub),
             f'masked_{SubArray.__name__}(data=[--, 1, --, 3, 4]')
 
+    @pytest.mark.thread_unsafe
     def test_subclass_str(self):
         """test str with subclass that has overridden str, setitem"""
         # first without override

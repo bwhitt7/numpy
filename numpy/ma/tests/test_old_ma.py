@@ -616,6 +616,7 @@ class TestMa:
             y = pickle.loads(s)
             assert_(eq(x, y))
 
+    @pytest.mark.thread_unsafe
     def test_testMasked(self):
         # Test of masked element
         xx = arange(6)

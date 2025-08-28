@@ -157,7 +157,6 @@ class TestMaskedArray:
 
     # message for warning filters
     def _create_data(self):
-    def _create_data(self):
         # Base data definition.
         x = np.array([1., 1., 1., -2., pi / 2.0, 4., 5., -10., 10., 1., 2., 3.])
         y = np.array([5., 0., 3., 2., -1., -4., 0., -10., 10., 1., 0., 3.])
@@ -1126,7 +1125,6 @@ class TestMaskedArray:
 class TestMaskedArrayArithmetic:
     # Base test class for MaskedArrays.
     def _create_data(self):
-    def _create_data(self):
         # Base data definition.
         x = np.array([1., 1., 1., -2., pi / 2.0, 4., 5., -10., 10., 1., 2., 3.])
         y = np.array([5., 0., 3., 2., -1., -4., 0., -10., 10., 1., 0., 3.])
@@ -1145,8 +1143,6 @@ class TestMaskedArrayArithmetic:
     def err_status(self):
         err = np.geterr()
         np.seterr(divide='ignore', invalid='ignore')
-        yield err
-        np.seterr(**err)
         yield err
         np.seterr(**err)
 
@@ -2597,9 +2593,7 @@ class TestFillingValues:
 class TestUfuncs:
     # Test class for the application of ufuncs on MaskedArrays.
     def _create_data(self):
-    def _create_data(self):
         # Base data definition.
-        return (array([1.0, 0, -1, pi / 2] * 2, mask=[0, 1] + [0] * 6),
         return (array([1.0, 0, -1, pi / 2] * 2, mask=[0, 1] + [0] * 6),
                   array([1.0, 0, -1, pi / 2] * 2, mask=[1, 0] + [0] * 6),)
 
@@ -2607,8 +2601,6 @@ class TestUfuncs:
     def err_status(self):
         err = np.geterr()
         np.seterr(divide='ignore', invalid='ignore')
-        yield err
-        np.seterr(**err)
         yield err
         np.seterr(**err)
 
@@ -2637,7 +2629,6 @@ class TestUfuncs:
                 uf = getattr(fromnumeric, f)
             mf = getattr(numpy.ma.core, f)
             args = self._create_data()[:uf.nin]
-            args = self._create_data()[:uf.nin]
             ur = uf(*args)
             mr = mf(*args)
             assert_equal(ur.filled(0), mr.filled(0), f)
@@ -2645,7 +2636,6 @@ class TestUfuncs:
 
     def test_reduce(self):
         # Tests reduce on MaskedArrays.
-        a = self._create_data()[0]
         a = self._create_data()[0]
         assert_(not alltrue(a, axis=0))
         assert_(sometrue(a, axis=0))
@@ -2753,7 +2743,6 @@ class TestUfuncs:
 
 class TestMaskedArrayInPlaceArithmetic:
     # Test MaskedArray Arithmetic
-    def _create_intdata(self):
     def _create_intdata(self):
         x = arange(10)
         y = arange(10)
@@ -3130,7 +3119,6 @@ class TestMaskedArrayInPlaceArithmetic:
         othertypes, uint8data = self._create_otherdata()
         unsupported = {np.dtype(t).type for t in np.typecodes["Complex"]}
         for t in othertypes:
-        for t in othertypes:
             with warnings.catch_warnings():
                 warnings.filterwarnings("error")
                 x, y, xm = (_.astype(t) for _ in uint8data)
@@ -3151,7 +3139,6 @@ class TestMaskedArrayInPlaceArithmetic:
         # Check for TypeError in case of unsupported types
         othertypes, uint8data = self._create_otherdata()
         unsupported = {np.dtype(t).type for t in np.typecodes["Complex"]}
-        for t in othertypes:
         for t in othertypes:
             with warnings.catch_warnings():
                 warnings.filterwarnings("error")
@@ -3270,7 +3257,6 @@ class TestMaskedArrayInPlaceArithmetic:
 
 class TestMaskedArrayMethods:
     # Test class for miscellaneous MaskedArrays methods.
-    def _create_data(self):
     def _create_data(self):
         # Base data definition.
         x = np.array([8.375, 7.545, 8.828, 8.5, 1.757, 5.928,
@@ -4051,7 +4037,6 @@ class TestMaskedArrayMethods:
 
 class TestMaskedArrayMathMethods:
     def _create_data(self):
-    def _create_data(self):
         # Base data definition.
         x = np.array([8.375, 7.545, 8.828, 8.5, 1.757, 5.928,
                       8.43, 7.78, 9.865, 5.878, 8.979, 4.732,
@@ -4398,7 +4383,6 @@ class TestMaskedArrayMathMethods:
 
 class TestMaskedArrayMathMethodsComplex:
     # Test class for miscellaneous MaskedArrays methods.
-    def _create_data(self):
     def _create_data(self):
         # Base data definition.
         x = np.array([8.375j, 7.545j, 8.828j, 8.5j, 1.757j, 5.928,
@@ -5157,7 +5141,6 @@ class TestMaskedArrayFunctions:
 
 class TestMaskedFields:
     def _create_data(self):
-    def _create_data(self):
         ilist = [1, 2, 3, 4, 5]
         flist = [1.1, 2.2, 3.3, 4.4, 5.5]
         slist = ['one', 'two', 'three', 'four', 'five']
@@ -5166,12 +5149,8 @@ class TestMaskedFields:
         mask = [0, 1, 0, 0, 1]
         base = array(list(zip(ilist, flist, slist)), mask=mask, dtype=ddtype)
         return {"base": base, "mask": mask, "ddtype": ddtype, "mdtype": mdtype}
-        return {"base": base, "mask": mask, "ddtype": ddtype, "mdtype": mdtype}
 
     def test_set_records_masks(self):
-        data = self._create_data()
-        base = data['base']
-        mdtype = data['mdtype']
         data = self._create_data()
         base = data['base']
         mdtype = data['mdtype']
@@ -5194,7 +5173,6 @@ class TestMaskedFields:
     def test_set_record_element(self):
         # Check setting an element of a record)
         base = self._create_data()['base']
-        base = self._create_data()['base']
         (base_a, base_b, base_c) = (base['a'], base['b'], base['c'])
         base[0] = (pi, pi, 'pi')
 
@@ -5209,7 +5187,6 @@ class TestMaskedFields:
                      [b'pi', b'two', b'three', b'four', b'five'])
 
     def test_set_record_slice(self):
-        base = self._create_data()['base']
         base = self._create_data()['base']
         (base_a, base_b, base_c) = (base['a'], base['b'], base['c'])
         base[:3] = (pi, pi, 'pi')
@@ -5226,7 +5203,6 @@ class TestMaskedFields:
 
     def test_mask_element(self):
         "Check record access"
-        base = self._create_data()['base']
         base = self._create_data()['base']
         base[0] = masked
 
@@ -5321,10 +5297,7 @@ class TestMaskedFields:
 
     def test_element_len(self):
         data = self._create_data()
-        data = self._create_data()
         # check that len() works for mvoid (Github issue #576)
-        for rec in data['base']:
-            assert_equal(len(rec), len(data['ddtype']))
         for rec in data['base']:
             assert_equal(len(rec), len(data['ddtype']))
 
@@ -5378,7 +5351,6 @@ class TestMaskedObjectArray:
 
 
 class TestMaskedView:
-    def _create_data(self):
     def _create_data(self):
         iterator = list(zip(np.arange(10), np.random.rand(10)))
         data = np.array(iterator)

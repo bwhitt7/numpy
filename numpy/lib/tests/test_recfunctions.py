@@ -1,3 +1,5 @@
+import pytest
+
 import numpy as np
 import numpy.ma as ma
 from numpy.lib.recfunctions import (
@@ -30,8 +32,6 @@ zip_dtype = np.lib.recfunctions._zip_dtype
 
 class TestRecFunctions:
     # Misc tests
-    def test_zip_descr(self):
-        # Test zip_descr
     def test_zip_descr(self):
         # Test zip_descr
         x = np.array([1, 2, ])
@@ -236,6 +236,7 @@ class TestRecFunctions:
         dt = np.dtype((np.record, dt))
         assert_(repack_fields(dt).type is np.record)
 
+    @pytest.mark.thread_unsafe(reason="memmap is thread-unsafe (gh-29126)")
     def test_structured_to_unstructured(self, tmp_path):
         a = np.zeros(4, dtype=[('a', 'i4'), ('b', 'f4,u2'), ('c', 'f4', 2)])
         out = structured_to_unstructured(a)
@@ -368,7 +369,7 @@ class TestRecFunctions:
         assert_equal(ddd, dd_expected)
 
         # memmap
-        d = np.memmap(tmp_path / ('memmap' + str(uuid4())),
+        d = np.memmap(tmp_path / 'memmap',
                       mode='w+',
                       dtype=d_plain.dtype,
                       shape=d_plain.shape)
@@ -800,11 +801,8 @@ class TestStackArrays:
 class TestJoinBy:
     def _create_arrays(self):
         a = np.array(list(zip(np.arange(10), np.arange(50, 60),
-    def _create_arrays(self):
-        a = np.array(list(zip(np.arange(10), np.arange(50, 60),
                                    np.arange(100, 110))),
                           dtype=[('a', int), ('b', int), ('c', int)])
-        b = np.array(list(zip(np.arange(5, 15), np.arange(65, 75),
         b = np.array(list(zip(np.arange(5, 15), np.arange(65, 75),
                                    np.arange(100, 110))),
                           dtype=[('a', int), ('b', int), ('d', int)])
@@ -1025,7 +1023,6 @@ class TestJoinBy2:
         assert_equal(test, control)
 
 
-
 class TestAppendFieldsObj:
     """
     Test append_fields with arrays containing objects
@@ -1034,8 +1031,6 @@ class TestAppendFieldsObj:
 
     def test_append_to_objects(self):
         "Test append_fields when the base array contains objects"
-        from datetime import date
-        obj = date(2000, 1, 1)
         from datetime import date
         obj = date(2000, 1, 1)
         x = np.array([(obj, 1.), (obj, 2.)],
