@@ -307,19 +307,19 @@ class TestMultivariateHypergeometric:
 
 
 class TestSetState:
-    def _create_data(self):
+    def _create_rng(self):
         seed = 1234567890
         rg = Generator(MT19937(seed))
         bit_generator = rg.bit_generator
         state = bit_generator.state
         legacy_state = (state['bit_generator'],
-                             state['state']['key'],
-                             state['state']['pos'])
-        return (rg, bit_generator, state)
+                        state['state']['key'],
+                        state['state']['pos'])
+        return rg, bit_generator, state
 
     def test_gaussian_reset(self):
         # Make sure the cached every-other-Gaussian is reset.
-        (rg, bit_generator, state) = self._create_data()
+        rg, bit_generator, state = self._create_rng()
         old = rg.standard_normal(size=3)
         bit_generator.state = state
         new = rg.standard_normal(size=3)
@@ -328,7 +328,7 @@ class TestSetState:
     def test_gaussian_reset_in_media_res(self):
         # When the state is saved with a cached Gaussian, make sure the
         # cached Gaussian is restored.
-        (rg, bit_generator, state) = self._create_data()
+        rg, bit_generator, state = self._create_rng()
         rg.standard_normal()
         state = bit_generator.state
         old = rg.standard_normal(size=3)
@@ -339,7 +339,7 @@ class TestSetState:
     def test_negative_binomial(self):
         # Ensure that the negative binomial results take floating point
         # arguments without truncation.
-        rg = self._create_data()[0]
+        rg, _, _ = self._create_rng()
         rg.negative_binomial(0.5, 0.5)
 
 
@@ -735,7 +735,6 @@ class TestIntegers:
         assert chi2 < chi2max
 
 
-#only some tests, whichever ones use self
 class TestRandomDist:
     # Make sure the random distribution returns the correct value for a
     # given seed
@@ -2509,6 +2508,7 @@ class TestBroadcast:
         assert actual.shape == (3, 0, 7, 4)
 
 
+@pytest.mark.skipif(IS_WASM, reason="can't start thread")
 class TestThread:
     # make sure each state produces the same sequence even in threads
     seeds = range(4)
@@ -2556,15 +2556,11 @@ class TestThread:
 
 # See Issue #4263
 class TestSingleEltArrayInput:
-    def _create_data(self):
-        argOne = np.array([2])
-        argTwo = np.array([3])
-        argThree = np.array([4])
-        tgtShape = (1,)
-        return (argOne, argTwo, argThree, tgtShape)
+    def _create_arrays(self):
+        return np.array([2]), np.array([3]), np.array([4]), (1,)
 
     def test_one_arg_funcs(self):
-        (argOne, _, _, tgtShape) = self._create_data()
+        argOne, _, _, tgtShape = self._create_arrays()
         funcs = (random.exponential, random.standard_gamma,
                  random.chisquare, random.standard_t,
                  random.pareto, random.weibull,
@@ -2584,7 +2580,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_two_arg_funcs(self):
-        (argOne, argTwo, _, tgtShape) = self._create_data()
+        argOne, argTwo, _, tgtShape = self._create_arrays()
         funcs = (random.uniform, random.normal,
                  random.beta, random.gamma,
                  random.f, random.noncentral_chisquare,
@@ -2612,7 +2608,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_integers(self, endpoint):
-        (_, _, _, tgtShape) = self._create_data()
+        _, _, _, tgtShape = self._create_arrays()
         itype = [np.bool, np.int8, np.uint8, np.int16, np.uint16,
                  np.int32, np.uint32, np.int64, np.uint64]
         func = random.integers
@@ -2630,7 +2626,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_three_arg_funcs(self):
-        (argOne, argTwo, argThree, tgtShape) = self._create_data()
+        argOne, argTwo, argThree, tgtShape = self._create_arrays()
         funcs = [random.noncentral_f, random.triangular,
                  random.hypergeometric]
 

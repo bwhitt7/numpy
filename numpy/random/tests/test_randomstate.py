@@ -169,7 +169,7 @@ class TestMultinomial:
     def test_invalid_n(self):
         assert_raises(ValueError, random.multinomial, -1, [0.8, 0.2])
 
-    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
+    @pytest.mark.thread_unsafe
     def test_p_non_contiguous(self):
         p = np.arange(15.)
         p /= np.sum(p[1::3])
@@ -198,10 +198,10 @@ class TestSetState:
         seed = 1234567890
         random_state = random.RandomState(seed)
         state = random_state.get_state()
-        return (random_state, state)
+        return random_state, state
 
     def test_basic(self):
-        (random_state, state) = self._create_state()
+        random_state, state = self._create_state()
         old = random_state.tomaxint(16)
         random_state.set_state(state)
         new = random_state.tomaxint(16)
@@ -209,7 +209,7 @@ class TestSetState:
 
     def test_gaussian_reset(self):
         # Make sure the cached every-other-Gaussian is reset.
-        (random_state, state) = self._create_state()
+        random_state, state = self._create_state()
         old = random_state.standard_normal(size=3)
         random_state.set_state(state)
         new = random_state.standard_normal(size=3)
@@ -218,7 +218,7 @@ class TestSetState:
     def test_gaussian_reset_in_media_res(self):
         # When the state is saved with a cached Gaussian, make sure the
         # cached Gaussian is restored.
-        (random_state, state) = self._create_state()
+        random_state, state = self._create_state()
         random_state.standard_normal()
         state = random_state.get_state()
         old = random_state.standard_normal(size=3)
@@ -229,7 +229,7 @@ class TestSetState:
     def test_backwards_compatibility(self):
         # Make sure we can accept old state tuples that do not have the
         # cached Gaussian value.
-        (random_state, state) = self._create_state()
+        random_state, state = self._create_state()
         old_state = state[:-2]
         x1 = random_state.standard_normal(size=16)
         random_state.set_state(old_state)
@@ -242,7 +242,7 @@ class TestSetState:
     def test_negative_binomial(self):
         # Ensure that the negative binomial results take floating point
         # arguments without truncation.
-        random_state = self._create_state()[0]
+        random_state, _ = self._create_state()
         random_state.negative_binomial(0.5, 0.5)
 
     def test_get_state_warning(self):
@@ -253,7 +253,7 @@ class TestSetState:
         assert state['bit_generator'] == 'PCG64'
 
     def test_invalid_legacy_state_setting(self):
-        (random_state, state) = self._create_state()
+        random_state, state = self._create_state()
         state = random_state.get_state()
         new_state = ('Unknown', ) + state[1:]
         assert_raises(ValueError, random_state.set_state, new_state)
@@ -264,7 +264,7 @@ class TestSetState:
         assert_raises(ValueError, random_state.set_state, state)
 
     def test_pickle(self):
-        random_state = self._create_state()[0]
+        random_state, _ = self._create_state()
         random_state.seed(0)
         random_state.random_sample(100)
         random_state.standard_normal()
@@ -275,7 +275,7 @@ class TestSetState:
         assert_mt19937_state_equal(pickled, unpickled)
 
     def test_state_setting(self):
-        (random_state, state) = self._create_state()
+        random_state, state = self._create_state()
         attr_state = random_state.__getstate__()
         random_state.standard_normal()
         random_state.__setstate__(attr_state)
@@ -283,7 +283,7 @@ class TestSetState:
         assert_mt19937_state_equal(attr_state, state)
 
     def test_repr(self):
-        random_state = self._create_state()[0]
+        random_state, _ = self._create_state()
         assert repr(random_state).startswith('RandomState(MT19937)')
 
 
@@ -350,7 +350,7 @@ class TestRandint:
         assert_(vals.max() < 2)
         assert_(vals.min() >= 0)
 
-    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
+    @pytest.mark.thread_unsafe
     def test_repeatability(self):
         # We use a sha256 hash of generated sequences of 1000 samples
         # in the range [0, 6) for all but bool, where the range
@@ -383,9 +383,9 @@ class TestRandint:
         res = hashlib.sha256(val).hexdigest()
         assert_(tgt[np.dtype(bool).name] == res)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     @pytest.mark.skipif(np.iinfo('l').max < 2**32,
                         reason='Cannot test with 32-bit C long')
-    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_repeatability_32bit_boundary_broadcasting(self):
         desired = np.array([[[3992670689, 2438360420, 2557845020],
                              [4107320065, 4142558326, 3216529513],
@@ -453,8 +453,7 @@ class TestRandint:
             assert_equal(type(sample), dt)
 
 
-@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
-#not all tests, only tests which use self.seed
+@pytest.mark.thread_unsafe
 class TestRandomDist:
     # Make sure the random distribution returns the correct value for a
     # given seed
@@ -1319,7 +1318,7 @@ class TestRandomDist:
         assert_array_equal(actual, desired)
 
 
-@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
+@pytest.mark.thread_unsafe
 class TestBroadcast:
     # tests that functions that broadcast behave
     # correctly when presented with non-scalar arguments
@@ -1953,17 +1952,12 @@ class TestThread:
 
 
 # See Issue #4263
-@pytest.mark.thread_unsafe(reason="Test teardown or setup is thread-unsafe?")
 class TestSingleEltArrayInput:
-    def _create_data(self):
-        argOne = np.array([2])
-        argTwo = np.array([3])
-        argThree = np.array([4])
-        tgtShape = (1,)
-        return (argOne, argTwo, argThree, tgtShape)
+    def _create_arrays(self):
+        return np.array([2]), np.array([3]), np.array([4]), (1,)
 
     def test_one_arg_funcs(self):
-        (argOne, _, _, tgtShape) = self._create_data()
+        argOne, _, _, tgtShape = self._create_arrays()
         funcs = (random.exponential, random.standard_gamma,
                  random.chisquare, random.standard_t,
                  random.pareto, random.weibull,
@@ -1983,7 +1977,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_two_arg_funcs(self):
-        (argOne, argTwo, _, tgtShape) = self._create_data()
+        argOne, argTwo, _, tgtShape = self._create_arrays()
         funcs = (random.uniform, random.normal,
                  random.beta, random.gamma,
                  random.f, random.noncentral_chisquare,
@@ -2011,7 +2005,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_three_arg_funcs(self):
-        (argOne, argTwo, argThree, tgtShape) = self._create_data()
+        argOne, argTwo, argThree, tgtShape = self._create_arrays()
         funcs = [random.noncentral_f, random.triangular,
                  random.hypergeometric]
 
@@ -2035,7 +2029,7 @@ def test_integer_dtype(int_func):
     assert_(actual.dtype == np.dtype('l'))
 
 
-@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
+@pytest.mark.thread_unsafe
 def test_integer_repeat(int_func):
     random.seed(123456789)
     fname, args, sha256 = int_func

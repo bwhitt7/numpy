@@ -1404,11 +1404,11 @@ class TestCorrcoef:
     def _create_data(self):
         data = array(np.random.rand(12))
         data2 = array(np.random.rand(12))
-        return (data, data2)
+        return data, data2
 
     def test_ddof(self):
         # ddof raises DeprecationWarning
-        (x, y) = self._create_data()
+        x, y = self._create_data()
         expected = np.corrcoef(x)
         expected2 = np.corrcoef(x, y)
         with pytest.warns(DeprecationWarning):
@@ -1426,7 +1426,7 @@ class TestCorrcoef:
             assert_almost_equal(corrcoef(x, y, ddof=3), expected2)
 
     def test_bias(self):
-        (x, y) = self._create_data()
+        x, y = self._create_data()
         expected = np.corrcoef(x)
         # bias raises DeprecationWarning
         with pytest.warns(DeprecationWarning):
@@ -1520,7 +1520,7 @@ class TestCorrcoef:
 
 
 class TestPolynomial:
-    #
+
     def test_polyfit(self):
         # Tests polyfit
         # On ndarrays

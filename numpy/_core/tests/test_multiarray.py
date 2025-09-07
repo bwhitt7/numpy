@@ -16,7 +16,6 @@ import tempfile
 import warnings
 import weakref
 from contextlib import contextmanager
-from uuid import uuid4
 
 # Need to test an object that does not fully implement math interface
 from datetime import datetime, timedelta
@@ -315,10 +314,10 @@ class TestAttributes:
         one = np.arange(10)
         two = np.arange(20).reshape(4, 5)
         three = np.arange(60, dtype=np.float64).reshape(2, 5, 6)
-        return (one, two, three)
+        return one, two, three
 
     def test_attributes(self):
-        (one, two, three) = self._create_arrays()
+        one, two, three = self._create_arrays()
         assert_equal(one.shape, (10,))
         assert_equal(two.shape, (4, 5))
         assert_equal(three.shape, (2, 5, 6))
@@ -340,7 +339,7 @@ class TestAttributes:
         assert_equal(two.base, np.arange(20))
 
     def test_dtypeattr(self):
-        (one, two, three) = self._create_arrays()
+        one, _, three = self._create_arrays()
         assert_equal(one.dtype, np.dtype(np.int_))
         assert_equal(three.dtype, np.dtype(np.float64))
         assert_equal(one.dtype.char, np.dtype(int).char)
@@ -359,7 +358,7 @@ class TestAttributes:
         assert_(not isinstance(numpy_int, int))
 
     def test_stridesattr(self):
-        (x, _, _) = self._create_arrays()
+        x, _, _ = self._create_arrays()
 
         def make_array(size, offset, strides):
             return np.ndarray(size, buffer=x, dtype=int,
@@ -376,7 +375,7 @@ class TestAttributes:
         make_array(0, 0, 10)
 
     def test_set_stridesattr(self):
-        (x, _, _) = self._create_arrays()
+        x, _, _ = self._create_arrays()
 
         def make_array(size, offset, strides):
             try:
@@ -739,42 +738,42 @@ class TestZeroRank:
         return np.array(0), np.array('x', object)
 
     def test_ellipsis_subscript(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         assert_equal(a[...], 0)
         assert_equal(b[...], 'x')
         assert_(a[...].base is a)  # `a[...] is a` in numpy <1.9.
         assert_(b[...].base is b)  # `b[...] is b` in numpy <1.9.
 
     def test_empty_subscript(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         assert_equal(a[()], 0)
         assert_equal(b[()], 'x')
         assert_(type(a[()]) is a.dtype.type)
         assert_(type(b[()]) is str)
 
     def test_invalid_subscript(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         assert_raises(IndexError, lambda x: x[0], a)
         assert_raises(IndexError, lambda x: x[0], b)
         assert_raises(IndexError, lambda x: x[np.array([], int)], a)
         assert_raises(IndexError, lambda x: x[np.array([], int)], b)
 
     def test_ellipsis_subscript_assignment(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         a[...] = 42
         assert_equal(a, 42)
         b[...] = ''
         assert_equal(b.item(), '')
 
     def test_empty_subscript_assignment(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
         a[()] = 42
         assert_equal(a, 42)
         b[()] = ''
         assert_equal(b.item(), '')
 
     def test_invalid_subscript_assignment(self):
-        (a, b) = self._create_arrays()
+        a, b = self._create_arrays()
 
         def assign(x, i, v):
             x[i] = v
@@ -784,7 +783,7 @@ class TestZeroRank:
         assert_raises(ValueError, assign, a, (), '')
 
     def test_newaxis(self):
-        (a, _) = self._create_arrays()
+        a, _ = self._create_arrays()
         assert_equal(a[np.newaxis].shape, (1,))
         assert_equal(a[..., np.newaxis].shape, (1,))
         assert_equal(a[np.newaxis, ...].shape, (1,))
@@ -795,7 +794,7 @@ class TestZeroRank:
         assert_equal(a[(np.newaxis,) * 10].shape, (1,) * 10)
 
     def test_invalid_newaxis(self):
-        (a, _) = self._create_arrays()
+        a, _ = self._create_arrays()
 
         def subscript(x, i):
             x[i]
@@ -2214,7 +2213,7 @@ class TestMethods:
 
         with assert_raises_regex(
             ValueError,
-            "kind` and `stable` parameters can't be provided at the same time"
+            "`kind` and keyword parameters can't be provided at the same time"
         ):
             np.sort(a, kind="stable", stable=True)
 
@@ -2657,7 +2656,7 @@ class TestMethods:
 
         with assert_raises_regex(
             ValueError,
-            "kind` and `stable` parameters can't be provided at the same time"
+            "`kind` and keyword parameters can't be provided at the same time"
         ):
             np.argsort(a, kind="stable", stable=True)
 
@@ -5572,6 +5571,7 @@ class TestLexsort:
         x = np.linspace(0., 1., 42 * 3).reshape(42, 3)
         assert_raises(AxisError, np.lexsort, x, axis=2)
 
+@pytest.mark.thread_unsafe
 class TestIO:
     """Test tofile, fromfile, tobytes, and fromstring"""
 
@@ -5582,14 +5582,15 @@ class TestIO:
         x[0, :, 1] = [np.nan, np.inf, -np.inf, np.nan]
         return x
 
-    def _create_tmp_filename(self, tmp_path, request):
+    @pytest.fixture(params=["string", "path_obj"])
+    def tmp_filename(self, tmp_path, request):
         # This fixture covers two cases:
         # one where the filename is a string and
         # another where it is a pathlib object
-        filename = tmp_path / ("file" + str(uuid4()))
-        if request == "string":
+        filename = tmp_path / "file"
+        if request.param == "string":
             filename = str(filename)
-        return filename
+        yield filename
 
     def test_nofile(self):
         # this should probably be supported as a file
@@ -5620,25 +5621,19 @@ class TestIO:
         d = np.fromstring("1,2", sep=",", dtype=np.int64, count=0)
         assert d.shape == (0,)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_empty_files_text(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_empty_files_text(self, tmp_filename):
         with open(tmp_filename, 'w') as f:
             pass
         y = np.fromfile(tmp_filename)
         assert_(y.size == 0, "Array not empty")
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_empty_files_binary(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_empty_files_binary(self, tmp_filename):
         with open(tmp_filename, 'wb') as f:
             pass
         y = np.fromfile(tmp_filename, sep=" ")
         assert_(y.size == 0, "Array not empty")
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_roundtrip_file(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_roundtrip_file(self, tmp_filename):
         x = self._create_data()
         with open(tmp_filename, 'wb') as f:
             x.tofile(f)
@@ -5647,17 +5642,13 @@ class TestIO:
             y = np.fromfile(f, dtype=x.dtype)
         assert_array_equal(y, x.flat)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_roundtrip(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_roundtrip(self, tmp_filename):
         x = self._create_data()
         x.tofile(tmp_filename)
         y = np.fromfile(tmp_filename, dtype=x.dtype)
         assert_array_equal(y, x.flat)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_roundtrip_dump_pathlib(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_roundtrip_dump_pathlib(self, tmp_filename):
         x = self._create_data()
         p = pathlib.Path(tmp_filename)
         x.dump(p)
@@ -5675,7 +5666,8 @@ class TestIO:
         assert_array_equal(y, x.flatten('F'))
 
     def test_roundtrip_str(self):
-        x = self._create_data().real.ravel()
+        x = self._create_data()
+        x = x.real.ravel()
         s = "@".join(map(str, x))
         y = np.fromstring(s, sep="@")
         nan_mask = ~np.isfinite(x)
@@ -5683,15 +5675,14 @@ class TestIO:
         assert_array_equal(x[~nan_mask], y[~nan_mask])
 
     def test_roundtrip_repr(self):
-        x = self._create_data().real.ravel()
+        x = self._create_data()
+        x = x.real.ravel()
         s = "@".join(repr(x)[11:-1] for x in x)
         y = np.fromstring(s, sep="@")
         assert_array_equal(x, y)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_unseekable_fromfile(self, filename_type, tmp_path):
+    def test_unseekable_fromfile(self, tmp_filename):
         # gh-6246
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         x = self._create_data()
         x.tofile(tmp_filename)
 
@@ -5703,20 +5694,16 @@ class TestIO:
             f.tell = fail
             assert_raises(OSError, np.fromfile, f, dtype=x.dtype)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_io_open_unbuffered_fromfile(self, filename_type, tmp_path):
+    def test_io_open_unbuffered_fromfile(self, tmp_filename):
         # gh-6632
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         x = self._create_data()
         x.tofile(tmp_filename)
         with open(tmp_filename, 'rb', buffering=0) as f:
             y = np.fromfile(f, dtype=x.dtype)
             assert_array_equal(y, x.flat)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_largish_file(self, filename_type, tmp_path):
+    def test_largish_file(self, tmp_filename):
         # check the fallocate path on files > 16MB
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         d = np.zeros(4 * 1024 ** 2)
         d.tofile(tmp_filename)
         assert_equal(os.path.getsize(tmp_filename), d.nbytes)
@@ -5735,20 +5722,16 @@ class TestIO:
             d.tofile(f)
         assert_equal(os.path.getsize(tmp_filename), d.nbytes * 2)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_io_open_buffered_fromfile(self, filename_type, tmp_path):
+    def test_io_open_buffered_fromfile(self, tmp_filename):
         # gh-6632
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         x = self._create_data()
         x.tofile(tmp_filename)
         with open(tmp_filename, 'rb', buffering=-1) as f:
             y = np.fromfile(f, dtype=x.dtype)
         assert_array_equal(y, x.flat)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_file_position_after_fromfile(self, filename_type, tmp_path):
+    def test_file_position_after_fromfile(self, tmp_filename):
         # gh-4118
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         sizes = [io.DEFAULT_BUFFER_SIZE // 8,
                  io.DEFAULT_BUFFER_SIZE,
                  io.DEFAULT_BUFFER_SIZE * 8]
@@ -5767,10 +5750,8 @@ class TestIO:
                     pos = f.tell()
                 assert_equal(pos, 10, err_msg=err_msg)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_file_position_after_tofile(self, filename_type, tmp_path):
+    def test_file_position_after_tofile(self, tmp_filename):
         # gh-4118
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         sizes = [io.DEFAULT_BUFFER_SIZE // 8,
                  io.DEFAULT_BUFFER_SIZE,
                  io.DEFAULT_BUFFER_SIZE * 8]
@@ -5794,10 +5775,8 @@ class TestIO:
                 pos = f.tell()
             assert_equal(pos, 10, err_msg=err_msg)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_load_object_array_fromfile(self, filename_type, tmp_path):
+    def test_load_object_array_fromfile(self, tmp_filename):
         # gh-12300
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         with open(tmp_filename, 'w') as f:
             # Ensure we have a file with consistent contents
             pass
@@ -5809,9 +5788,7 @@ class TestIO:
         assert_raises_regex(ValueError, "Cannot read into object array",
                             np.fromfile, tmp_filename, dtype=object)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_fromfile_offset(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_fromfile_offset(self, tmp_filename):
         x = self._create_data()
         with open(tmp_filename, 'wb') as f:
             x.tofile(f)
@@ -5846,19 +5823,15 @@ class TestIO:
                     np.fromfile, tmp_filename, dtype=x.dtype,
                     sep=",", offset=1)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
     @pytest.mark.skipif(IS_PYPY, reason="bug in PyPy's PyNumber_AsSsize_t")
-    @pytest.mark.thread_unsafe("os.dup thread-unsafe?")
-    def test_fromfile_bad_dup(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
-        x = self._create_data()
-
+    def test_fromfile_bad_dup(self, tmp_filename):
         def dup_str(fd):
             return 'abc'
 
         def dup_bigint(fd):
             return 2**68
 
+        x = self._create_data()
         old_dup = os.dup
         try:
             with open(tmp_filename, 'wb') as f:
@@ -5909,50 +5882,38 @@ class TestIO:
         else:
             assert False, request.param
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_nan(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_nan(self, tmp_filename, decimal_sep_localization):
         self._check_from(
             b"nan +nan -nan NaN nan(foo) +NaN(BAR) -NAN(q_u_u_x_)",
             [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan],
             tmp_filename,
             sep=' ')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_inf(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_inf(self, tmp_filename, decimal_sep_localization):
         self._check_from(
             b"inf +inf -inf infinity -Infinity iNfInItY -inF",
             [np.inf, np.inf, -np.inf, np.inf, -np.inf, np.inf, -np.inf],
             tmp_filename,
             sep=' ')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_numbers(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_numbers(self, tmp_filename, decimal_sep_localization):
         self._check_from(
             b"1.234 -1.234 .3 .3e55 -123133.1231e+133",
             [1.234, -1.234, .3, .3e55, -123133.1231e+133],
             tmp_filename,
             sep=' ')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_binary(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_binary(self, tmp_filename):
         self._check_from(
             b'\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@',
             np.array([1, 2, 3, 4]),
             tmp_filename,
             dtype='<f4')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_string(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_string(self, tmp_filename):
         self._check_from(b'1,2,3,4', [1., 2., 3., 4.], tmp_filename, sep=',')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_counted_string(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_counted_string(self, tmp_filename, decimal_sep_localization):
         self._check_from(
             b'1,2,3,4', [1., 2., 3., 4.], tmp_filename, count=4, sep=',')
         self._check_from(
@@ -5960,49 +5921,35 @@ class TestIO:
         self._check_from(
             b'1,2,3,4', [1., 2., 3., 4.], tmp_filename, count=-1, sep=',')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_string_with_ws(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_string_with_ws(self, tmp_filename):
         self._check_from(
             b'1 2  3     4   ', [1, 2, 3, 4], tmp_filename, dtype=int, sep=' ')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_counted_string_with_ws(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_counted_string_with_ws(self, tmp_filename):
         self._check_from(
             b'1 2  3     4   ', [1, 2, 3], tmp_filename, count=3, dtype=int,
             sep=' ')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_ascii(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_ascii(self, tmp_filename, decimal_sep_localization):
         self._check_from(
             b'1 , 2 , 3 , 4', [1., 2., 3., 4.], tmp_filename, sep=',')
         self._check_from(
             b'1,2,3,4', [1., 2., 3., 4.], tmp_filename, dtype=float, sep=',')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_malformed(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_malformed(self, tmp_filename, decimal_sep_localization):
         with assert_raises(ValueError):
             self._check_from(
                 b'1.234 1,234', [1.234, 1.], tmp_filename, sep=' ')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_long_sep(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_long_sep(self, tmp_filename):
         self._check_from(
             b'1_x_3_x_4_x_5', [1, 3, 4, 5], tmp_filename, sep='_x_')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_dtype(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_dtype(self, tmp_filename):
         v = np.array([1, 2, 3, 4], dtype=np.int_)
         self._check_from(b'1,2,3,4', v, tmp_filename, sep=',', dtype=np.int_)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_dtype_bool(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_dtype_bool(self, tmp_filename):
         # can't use _check_from because fromstring can't handle True/False
         v = np.array([True, False, True, False], dtype=np.bool)
         s = b'1,0,-2.3,0'
@@ -6012,9 +5959,7 @@ class TestIO:
         assert_(y.dtype == '?')
         assert_array_equal(y, v)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_tofile_sep(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_tofile_sep(self, tmp_filename, decimal_sep_localization):
         x = np.array([1.51, 2, 3.51, 4], dtype=float)
         with open(tmp_filename, 'w') as f:
             x.tofile(f, sep=',')
@@ -6024,9 +5969,7 @@ class TestIO:
         y = np.array([float(p) for p in s.split(',')])
         assert_array_equal(x, y)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_tofile_format(self, filename_type, tmp_path, decimal_sep_localization):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_tofile_format(self, tmp_filename, decimal_sep_localization):
         x = np.array([1.51, 2, 3.51, 4], dtype=float)
         with open(tmp_filename, 'w') as f:
             x.tofile(f, sep=',', format='%.2f')
@@ -6034,9 +5977,7 @@ class TestIO:
             s = f.read()
         assert_equal(s, '1.51,2.00,3.51,4.00')
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_tofile_cleanup(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_tofile_cleanup(self, tmp_filename):
         x = np.zeros((10), dtype=object)
         with open(tmp_filename, 'wb') as f:
             assert_raises(OSError, lambda: x.tofile(f, sep=''))
@@ -6047,10 +5988,8 @@ class TestIO:
         assert_raises(OSError, lambda: x.tofile(tmp_filename))
         os.remove(tmp_filename)
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_fromfile_subarray_binary(self, filename_type, tmp_path):
+    def test_fromfile_subarray_binary(self, tmp_filename):
         # Test subarray dtypes which are absorbed into the shape
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         x = np.arange(24, dtype="i4").reshape(2, 3, 4)
         x.tofile(tmp_filename)
         res = np.fromfile(tmp_filename, dtype="(3,4)i4")
@@ -6061,9 +6000,7 @@ class TestIO:
             # binary fromstring raises
             np.fromstring(x_str, dtype="(3,4)i4")
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_parsing_subarray_unsupported(self, filename_type, tmp_path):
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
+    def test_parsing_subarray_unsupported(self, tmp_filename):
         # We currently do not support parsing subarray dtypes
         data = "12,42,13," * 50
         with pytest.raises(ValueError):
@@ -6075,12 +6012,10 @@ class TestIO:
         with pytest.raises(ValueError):
             np.fromfile(tmp_filename, dtype="(3,)i", sep=",")
 
-    @pytest.mark.parametrize("filename_type", ["string", "path_obj"])
-    def test_read_shorter_than_count_subarray(self, filename_type, tmp_path):
+    def test_read_shorter_than_count_subarray(self, tmp_filename):
         # Test that requesting more values does not cause any problems
         # in conjunction with subarray dimensions being absorbed into the
         # array dimension.
-        tmp_filename = self._create_tmp_filename(tmp_path, filename_type)
         expected = np.arange(511 * 10, dtype="i").reshape(-1, 10)
 
         binary = expected.tobytes()
@@ -6129,21 +6064,17 @@ class TestFromBuffer:
             del arr
             mm.close()
 
+
 class TestFlat:
     def _create_arrays(self):
         a = np.arange(20.0).reshape(4, 5)
         a.flags.writeable = False
         b = a[::2, ::2]
-        return (a, b)
-
-    def _create_arrays0(self):
-        a0 = np.arange(20.0).reshape((4, 5))
-        b0 = a0[::2, ::2]
-        return (a0, b0)
+        return a, b
 
     def test_contiguous(self):
         testpassed = False
-        (a, _) = self._create_arrays()
+        a, _ = self._create_arrays()
         try:
             a.flat[12] = 100.0
         except ValueError:
@@ -6153,7 +6084,7 @@ class TestFlat:
 
     def test_discontiguous(self):
         testpassed = False
-        (_, b) = self._create_arrays()
+        _, b = self._create_arrays()
         try:
             b.flat[4] = 100.0
         except ValueError:
@@ -6162,8 +6093,12 @@ class TestFlat:
         assert_(b.flat[4] == 12.0)
 
     def test___array__(self):
-        (a, b) = self._create_arrays()
-        (a0, b0) = self._create_arrays0()
+        a0 = np.arange(20.0)
+        a = a0.reshape(4, 5)
+        a0 = a0.reshape((4, 5))
+        a.flags.writeable = False
+        b = a[::2, ::2]
+        b0 = a0[::2, ::2]
         c = a.flat.__array__()
         d = b.flat.__array__()
         e = a0.flat.__array__()
@@ -6181,7 +6116,7 @@ class TestFlat:
     @pytest.mark.skipif(not HAS_REFCOUNT, reason="Python lacks refcounts")
     def test_refcount(self):
         # includes regression test for reference count error gh-13165
-        (a, _) = self._create_arrays()
+        a, _ = self._create_arrays()
         inds = [np.intp(0), np.array([True] * a.size), np.array([0]), None]
         indtype = np.dtype(np.intp)
         rc_indtype = sys.getrefcount(indtype)
@@ -6436,6 +6371,7 @@ class TestRecord:
         v[:] = (4, 5)
         assert_equal(a[0].item(), (4, 1, 5))
 
+
 class TestView:
     def test_basic(self):
         x = np.array([(1, 2, 3, 4), (5, 6, 7, 8)],
@@ -6470,7 +6406,7 @@ class TestStats:
         rmat = rng.random((4, 5))
         cmat = rmat + 1j * rmat
         omat = np.array([Decimal(str(r)) for r in rmat.flat]).reshape(4, 5)
-        return (rmat, cmat, omat)
+        return rmat, cmat, omat
 
     def test_python_type(self):
         for x in (np.float16(1.), 1, 1., 1 + 0j):
@@ -6579,7 +6515,7 @@ class TestStats:
                 assert_(res is tgt)
 
     def test_ddof(self):
-        (rmat, _, _) = self._create_data()
+        rmat, _, _ = self._create_data()
         for f in [_var]:
             for ddof in range(3):
                 dim = rmat.shape[1]
@@ -6594,7 +6530,7 @@ class TestStats:
                 assert_almost_equal(res, tgt)
 
     def test_ddof_too_big(self):
-        (rmat, _, _) = self._create_data()
+        rmat, _, _ = self._create_data()
         dim = rmat.shape[1]
         for f in [_var, _std]:
             for ddof in range(dim, dim + 2):
@@ -6620,7 +6556,7 @@ class TestStats:
                     assert_equal(f(A, axis=axis), np.zeros([]))
 
     def test_mean_values(self):
-        (rmat, cmat, omat) = self._create_data()
+        rmat, cmat, omat = self._create_data()
         for mat in [rmat, cmat, omat]:
             for axis in [0, 1]:
                 tgt = mat.sum(axis=axis)
@@ -6679,7 +6615,7 @@ class TestStats:
             assert_equal(np.mean(a, where=False), np.nan)
 
     def test_var_values(self):
-        (rmat, cmat, omat) = self._create_data()
+        rmat, cmat, omat = self._create_data()
         for mat in [rmat, cmat, omat]:
             for axis in [0, 1, None]:
                 msqr = _mean(mat * mat.conj(), axis=axis)
@@ -6694,7 +6630,7 @@ class TestStats:
         ('clongdouble', 7),
     ))
     def test_var_complex_values(self, complex_dtype, ndec):
-        (_, cmat, _) = self._create_data()
+        _, cmat, _ = self._create_data()
         # Test fast-paths for every builtin complex type
         for axis in [0, 1, None]:
             mat = cmat.copy().astype(complex_dtype)
@@ -6707,7 +6643,7 @@ class TestStats:
     def test_var_dimensions(self):
         # _var paths for complex number introduce additions on views that
         # increase dimensions. Ensure this generalizes to higher dims
-        (_, cmat, _) = self._create_data()
+        _, cmat, _ = self._create_data()
         mat = np.stack([cmat] * 3)
         for axis in [0, 1, 2, -1, None]:
             msqr = _mean(mat * mat.conj(), axis=axis)
@@ -6719,7 +6655,7 @@ class TestStats:
     def test_var_complex_byteorder(self):
         # Test that var fast-path does not cause failures for complex arrays
         # with non-native byteorder
-        (_, cmat, _) = self._create_data()
+        _, cmat, _ = self._create_data()
         cmat = cmat.copy().astype('complex128')
         cmat_swapped = cmat.astype(cmat.dtype.newbyteorder())
         assert_almost_equal(cmat.var(), cmat_swapped.var())
@@ -6768,7 +6704,7 @@ class TestStats:
             assert_equal(np.var(a, where=False), np.nan)
 
     def test_std_values(self):
-        (rmat, cmat, omat) = self._create_data()
+        rmat, cmat, omat = self._create_data()
         for mat in [rmat, cmat, omat]:
             for axis in [0, 1, None]:
                 tgt = np.sqrt(_var(mat, axis=axis))
@@ -6900,66 +6836,65 @@ class TestVdot:
 
 
 class TestDot:
+    N = 7
+
     def _create_data(self):
-        rng = np.random.default_rng(128)
+        rng = np.random.RandomState(128)
         A = rng.random((4, 2))
         b1 = rng.random((2, 1))
         b2 = rng.random(2)
         b3 = rng.random((1, 2))
         b4 = rng.random(4)
-        return (A, b1, b2, b3, b4)
-
-    N = 7
+        return A, b1, b2, b3, b4
 
     def test_dotmatmat(self):
-        (A, _, _, _, _) = self._create_data()
+        A, _, _, _, _ = self._create_data()
         res = np.dot(A.transpose(), A)
-        tgt = np.array([[1.47632191, 1.30902162],
-                        [1.30902162, 1.44047178]])
+        tgt = np.array([[1.45046013, 0.86323640],
+                        [0.86323640, 0.84934569]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotmatvec(self):
-        (A, b1, _, _, _) = self._create_data()
+        A, b1, _, _, _ = self._create_data()
         res = np.dot(A, b1)
-        tgt = np.array([[0.53147439], [0.3881244],
-                    [0.28278056], [0.81799083]])
+        tgt = np.array([[0.32114320], [0.04889721],
+                        [0.15696029], [0.33612621]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotmatvec2(self):
-        (A, _, b2, _, _) = self._create_data()
+        A, _, b2, _, _ = self._create_data()
         res = np.dot(A, b2)
-        tgt = np.array([0.73687498, 0.51701463, 0.27242132, 1.09264356])
+        tgt = np.array([0.29677940, 0.04518649, 0.14468333, 0.31039293])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecmat(self):
-        (A, _, _, _, b4) = self._create_data()
+        A, _, _, _, b4 = self._create_data()
         res = np.dot(b4, A)
-        tgt = np.array([0.30087302, 0.76540662])
+        tgt = np.array([1.23495091, 1.12222648])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecmat2(self):
-        (A, _, _, b3, _) = self._create_data()
+        A, _, _, b3, _ = self._create_data()
         res = np.dot(b3, A.transpose())
-        tgt = np.array([[0.87004937, 0.63750863, 0.47499902, 1.3432763]])
+        tgt = np.array([[0.58793804, 0.08957460, 0.30605758, 0.62716383]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecmat3(self):
-        (A, _, _, _, b4) = self._create_data()
+        A, _, _, _, b4 = self._create_data()
         res = np.dot(A.transpose(), b4)
-        tgt = np.array([0.30087302, 0.76540662])
+        tgt = np.array([1.23495091, 1.12222648])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecvecouter(self):
-        (_, b1, _, b3, _) = self._create_data()
+        _, b1, _, b3, _ = self._create_data()
         res = np.dot(b1, b3)
-        tgt = np.array([[0.41852888, 0.35668856],
-                        [0.33830126, 0.28831508]])
+        tgt = np.array([[0.20128610, 0.08400440], [0.07190947, 0.03001058]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecvecinner(self):
-        (_, b1, _, b3, _) = self._create_data()
+        _, b1, _, b3, _ = self._create_data()
         res = np.dot(b3, b1)
-        tgt = np.array([[0.70684396]])
+        tgt = np.array([[0.23129668]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotcolumnvect1(self):
@@ -6977,19 +6912,19 @@ class TestDot:
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecscalar(self):
-        rng = np.random.default_rng(100)
+        rng = np.random.RandomState(100)
         b1 = rng.random((1, 1))
         b2 = rng.random((1, 4))
         res = np.dot(b1, b2)
-        tgt = np.array([[0.49811165, 0.2411955, 0.03586377, 0.81298353]])
+        tgt = np.array([[0.15126730, 0.23068496, 0.45905553, 0.00256425]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_dotvecscalar2(self):
-        rng = np.random.default_rng(100)
+        rng = np.random.RandomState(100)
         b1 = rng.random((4, 1))
         b2 = rng.random((1, 1))
         res = np.dot(b1, b2)
-        tgt = np.array([[0.81298353], [0.58083745], [0.28125296], [0.04181999]])
+        tgt = np.array([[0.00256425], [0.00131359], [0.00200324], [0.00398638]])
         assert_almost_equal(res, tgt, decimal=self.N)
 
     def test_all(self):
@@ -7810,20 +7745,20 @@ class TestChoose:
         x2 = 2 * np.ones((2, 3), dtype=int)
         y2 = 3 * np.ones((2, 3), dtype=int)
         ind = [0, 0, 1]
-        return (x, y, x2, y2, ind)
+        return x, y, x2, y2, ind
 
     def test_basic(self):
-        (x, y, _, _, ind) = self._create_data()
+        x, y, _, _, ind = self._create_data()
         A = np.choose(ind, (x, y))
         assert_equal(A, [2, 2, 3])
 
     def test_broadcast1(self):
-        (_, _, x2, y2, ind) = self._create_data()
+        _, _, x2, y2, ind = self._create_data()
         A = np.choose(ind, (x2, y2))
         assert_equal(A, [[2, 2, 3], [2, 2, 3]])
 
     def test_broadcast2(self):
-        (x, _, _, y2, ind) = self._create_data()
+        x, _, _, y2, ind = self._create_data()
         A = np.choose(ind, (x, y2))
         assert_equal(A, [[2, 2, 3], [2, 2, 3]])
 
@@ -7857,22 +7792,22 @@ class TestRepeat:
     def _create_data(self):
         m = np.array([1, 2, 3, 4, 5, 6])
         m_rect = m.reshape((2, 3))
-        return (m, m_rect)
+        return m, m_rect
 
     def test_basic(self):
-        (m, _) = self._create_data()
+        m, _ = self._create_data()
         A = np.repeat(m, [1, 3, 2, 1, 1, 2])
         assert_equal(A, [1, 2, 2, 2, 3,
                          3, 4, 5, 6, 6])
 
     def test_broadcast1(self):
-        (m, _) = self._create_data()
+        m, _ = self._create_data()
         A = np.repeat(m, 2)
         assert_equal(A, [1, 1, 2, 2, 3, 3,
                          4, 4, 5, 5, 6, 6])
 
     def test_axis_spec(self):
-        (_, m_rect) = self._create_data()
+        _, m_rect = self._create_data()
         A = np.repeat(m_rect, [2, 1], axis=0)
         assert_equal(A, [[1, 2, 3],
                          [1, 2, 3],
@@ -7883,7 +7818,7 @@ class TestRepeat:
                          [4, 5, 5, 5, 6, 6]])
 
     def test_broadcast2(self):
-        (_, m_rect) = self._create_data()
+        _, m_rect = self._create_data()
         A = np.repeat(m_rect, 2, axis=0)
         assert_equal(A, [[1, 2, 3],
                          [1, 2, 3],
@@ -10655,7 +10590,7 @@ def test_argsort_largearrays(dtype):
     assert_arg_sorted(arr, np.argsort(arr, kind='quick'))
 
 @pytest.mark.skipif(not HAS_REFCOUNT, reason="Python lacks refcounts")
-@pytest.mark.thread_unsafe(reason="Global state with ref counts")
+@pytest.mark.thread_unsafe
 def test_gh_22683():
     b = 777.68760986
     a = np.array([b] * 10000, dtype=object)

@@ -105,14 +105,14 @@ class TestMultinomial:
 
 
 class TestSetState:
-    def _create_data(self):
+    def _create_rng(self):
         seed = 1234567890
         prng = random.RandomState(seed)
         state = prng.get_state()
-        return (prng, state)
+        return prng, state
 
     def test_basic(self):
-        (prng, state) = self._create_data()
+        prng, state = self._create_rng()
         old = prng.tomaxint(16)
         prng.set_state(state)
         new = prng.tomaxint(16)
@@ -120,7 +120,7 @@ class TestSetState:
 
     def test_gaussian_reset(self):
         # Make sure the cached every-other-Gaussian is reset.
-        (prng, state) = self._create_data()
+        prng, state = self._create_rng()
         old = prng.standard_normal(size=3)
         prng.set_state(state)
         new = prng.standard_normal(size=3)
@@ -129,7 +129,7 @@ class TestSetState:
     def test_gaussian_reset_in_media_res(self):
         # When the state is saved with a cached Gaussian, make sure the
         # cached Gaussian is restored.
-        (prng, state) = self._create_data()
+        prng, state = self._create_rng()
         prng.standard_normal()
         state = prng.get_state()
         old = prng.standard_normal(size=3)
@@ -140,7 +140,7 @@ class TestSetState:
     def test_backwards_compatibility(self):
         # Make sure we can accept old state tuples that do not have the
         # cached Gaussian value.
-        (prng, state) = self._create_data()
+        prng, state = self._create_rng()
         old_state = state[:-2]
         x1 = prng.standard_normal(size=16)
         prng.set_state(old_state)
@@ -153,12 +153,12 @@ class TestSetState:
     def test_negative_binomial(self):
         # Ensure that the negative binomial results take floating point
         # arguments without truncation.
-        (prng, _) = self._create_data()
+        prng, _ = self._create_rng()
         prng.negative_binomial(0.5, 0.5)
 
     def test_set_invalid_state(self):
         # gh-25402
-        (prng, _) = self._create_data()
+        prng, _ = self._create_rng()
         with pytest.raises(IndexError):
             prng.set_state(())
 
@@ -226,7 +226,7 @@ class TestRandint:
         assert_(vals.max() < 2)
         assert_(vals.min() >= 0)
 
-    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
+    @pytest.mark.thread_unsafe
     def test_repeatability(self):
         import hashlib
         # We use a sha256 hash of generated sequences of 1000 samples
@@ -303,7 +303,7 @@ class TestRandint:
             assert_equal(type(sample), dt)
 
 
-@pytest.mark.thread_unsafe("np.random.seed() is global state")
+@pytest.mark.thread_unsafe
 class TestRandomDist:
     # Make sure the random distribution returns the correct value for a
     # given seed
@@ -1056,7 +1056,7 @@ class TestRandomDist:
         assert_array_equal(actual, desired)
 
 
-@pytest.mark.thread_unsafe("np.random.seed() is global state")
+@pytest.mark.thread_unsafe
 class TestBroadcast:
     # tests that functions that broadcast behave
     # correctly when presented with non-scalar arguments
@@ -1671,15 +1671,11 @@ class TestThread:
 
 # See Issue #4263
 class TestSingleEltArrayInput:
-    def _create_data(self):
-        argOne = np.array([2])
-        argTwo = np.array([3])
-        argThree = np.array([4])
-        tgtShape = (1,)
-        return (argOne, argTwo, argThree, tgtShape)
+    def _create_arrays(self):
+        return np.array([2]), np.array([3]), np.array([4]), (1,)
 
     def test_one_arg_funcs(self):
-        (argOne, _, _, tgtShape) = self._create_data()
+        argOne, _, _, tgtShape = self._create_arrays()
         funcs = (np.random.exponential, np.random.standard_gamma,
                  np.random.chisquare, np.random.standard_t,
                  np.random.pareto, np.random.weibull,
@@ -1699,7 +1695,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_two_arg_funcs(self):
-        (argOne, argTwo, _, tgtShape) = self._create_data()
+        argOne, argTwo, _, tgtShape = self._create_arrays()
         funcs = (np.random.uniform, np.random.normal,
                  np.random.beta, np.random.gamma,
                  np.random.f, np.random.noncentral_chisquare,
@@ -1727,7 +1723,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_randint(self):
-        (_, _, _, tgtShape) = self._create_data()
+        _, _, _, tgtShape = self._create_arrays()
         itype = [bool, np.int8, np.uint8, np.int16, np.uint16,
                  np.int32, np.uint32, np.int64, np.uint64]
         func = np.random.randint
@@ -1745,7 +1741,7 @@ class TestSingleEltArrayInput:
             assert_equal(out.shape, tgtShape)
 
     def test_three_arg_funcs(self):
-        (argOne, argTwo, argThree, tgtShape) = self._create_data()
+        argOne, argTwo, argThree, tgtShape = self._create_arrays()
         funcs = [np.random.noncentral_f, np.random.triangular,
                  np.random.hypergeometric]
 

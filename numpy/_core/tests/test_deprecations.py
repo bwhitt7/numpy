@@ -20,22 +20,20 @@ class _DeprecationTestCase:
     message = ''
     warning_cls = DeprecationWarning
 
-    def setup_method(self):
-        self.warn_ctx = warnings.catch_warnings(record=True)
-        self.log = self.warn_ctx.__enter__()
-
-        # Do *not* ignore other DeprecationWarnings. Ignoring warnings
-        # can give very confusing results because of
-        # https://bugs.python.org/issue4180 and it is probably simplest to
-        # try to keep the tests cleanly giving only the right warning type.
-        # (While checking them set to "error" those are ignored anyway)
-        # We still have them show up, because otherwise they would be raised
-        warnings.filterwarnings("always", category=self.warning_cls)
-        warnings.filterwarnings("always", message=self.message,
-                                category=self.warning_cls)
-
-    def teardown_method(self):
-        self.warn_ctx.__exit__()
+    @contextlib.contextmanager
+    def filter_warnings(self):
+        with warnings.catch_warnings(record=True) as w:
+            # Do *not* ignore other DeprecationWarnings. Ignoring warnings
+            # can give very confusing results because of
+            # https://bugs.python.org/issue4180 and it is probably simplest to
+            # try to keep the tests cleanly giving only the right warning type.
+            # (While checking them set to "error" those are ignored anyway)
+            # We still have them show up, because otherwise they would be raised
+            warnings.filterwarnings("always", category=self.warning_cls)
+            warnings.filterwarnings("always", message=self.message,
+                                    category=self.warning_cls)
+            yield w
+        return
 
     def assert_deprecated(self, function, num=1, ignore_others=False,
                           function_fails=False,
@@ -72,9 +70,6 @@ class _DeprecationTestCase:
         """
         __tracebackhide__ = True  # Hide traceback for py.test
 
-        # reset the log
-        self.log[:] = []
-
         if exceptions is np._NoValue:
             exceptions = (self.warning_cls,)
 
@@ -83,11 +78,12 @@ class _DeprecationTestCase:
         else:
             context_manager = contextlib.nullcontext()
         with context_manager:
-            function(*args, **kwargs)
+            with self.filter_warnings() as w_context:
+                function(*args, **kwargs)
 
         # just in case, clear the registry
         num_found = 0
-        for warning in self.log:
+        for warning in w_context:
             if warning.category is self.warning_cls:
                 num_found += 1
             elif not ignore_others:
@@ -95,8 +91,8 @@ class _DeprecationTestCase:
                         "expected %s but got: %s" %
                         (self.warning_cls.__name__, warning.category))
         if num is not None and num_found != num:
-            msg = f"{len(self.log)} warnings found but {num} expected."
-            lst = [str(w) for w in self.log]
+            msg = f"{len(w_context)} warnings found but {num} expected."
+            lst = [str(w) for w in w_context]
             raise AssertionError("\n".join([msg] + lst))
 
         with warnings.catch_warnings():
@@ -131,7 +127,6 @@ class _VisibleDeprecationTestCase(_DeprecationTestCase):
 class TestTestDeprecated:
     def test_assert_deprecated(self):
         test_case_instance = _DeprecationTestCase()
-        test_case_instance.setup_method()
         assert_raises(AssertionError,
                       test_case_instance.assert_deprecated,
                       lambda: None)
@@ -140,10 +135,8 @@ class TestTestDeprecated:
             warnings.warn("foo", category=DeprecationWarning, stacklevel=2)
 
         test_case_instance.assert_deprecated(foo)
-        test_case_instance.teardown_method()
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestBincount(_DeprecationTestCase):
     # 2024-07-29, 2.1.0
     @pytest.mark.parametrize('badlist', [[0.5, 1.2, 1.5],
@@ -152,7 +145,6 @@ class TestBincount(_DeprecationTestCase):
         self.assert_deprecated(lambda: np.bincount(badlist))
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestGeneratorSum(_DeprecationTestCase):
     # 2018-02-25, 1.15.0
     def test_generator_sum(self):
@@ -204,7 +196,6 @@ class FlatteningConcatenateUnsafeCast(_DeprecationTestCase):
                            casting="same_kind")
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestCtypesGetter(_DeprecationTestCase):
     # Deprecated 2021-05-18, Numpy 1.21.0
     warning_cls = DeprecationWarning
@@ -224,7 +215,6 @@ class TestCtypesGetter(_DeprecationTestCase):
         self.assert_not_deprecated(lambda: getattr(self.ctypes, name))
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestMachAr(_DeprecationTestCase):
     # Deprecated 2022-11-22, NumPy 1.25
     warning_cls = DeprecationWarning
@@ -233,7 +223,6 @@ class TestMachAr(_DeprecationTestCase):
         self.assert_deprecated(lambda: np._core.MachAr)
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestQuantileInterpolationDeprecation(_DeprecationTestCase):
     # Deprecated 2021-11-08, NumPy 1.22
     @pytest.mark.parametrize("func",
@@ -247,14 +236,11 @@ class TestQuantileInterpolationDeprecation(_DeprecationTestCase):
     @pytest.mark.parametrize("func",
             [np.percentile, np.quantile, np.nanpercentile, np.nanquantile])
     def test_both_passed(self, func):
-        with warnings.catch_warnings():
-            # catch the DeprecationWarning so that it does not raise:
-            warnings.simplefilter("always", DeprecationWarning)
+        with pytest.warns(DeprecationWarning):
             with pytest.raises(TypeError):
                 func([0., 1.], 0., interpolation="nearest", method="nearest")
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestScalarConversion(_DeprecationTestCase):
     # 2023-01-02, 1.25.0
     def test_float_conversion(self):
@@ -267,7 +253,6 @@ class TestScalarConversion(_DeprecationTestCase):
             c[0] = b
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestPyIntConversion(_DeprecationTestCase):
     message = r".*stop allowing conversion of out-of-bound.*"
 
@@ -330,20 +315,17 @@ class TestRemovedGlobals:
             getattr(np, name)
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDeprecatedFinfo(_DeprecationTestCase):
     # Deprecated in NumPy 1.25, 2023-01-16
     def test_deprecated_none(self):
         self.assert_deprecated(np.finfo, args=(None,))
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestMathAlias(_DeprecationTestCase):
     def test_deprecated_np_lib_math(self):
         self.assert_deprecated(lambda: np.lib.math)
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestLibImports(_DeprecationTestCase):
     # Deprecated in Numpy 1.26.0, 2023-09
     def test_lib_functions_deprecation_call(self):
@@ -372,16 +354,13 @@ class TestLibImports(_DeprecationTestCase):
         self.assert_deprecated(lambda: np.chararray)
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDeprecatedDTypeAliases(_DeprecationTestCase):
 
     def _check_for_warning(self, func):
-        with warnings.catch_warnings(record=True) as caught_warnings:
+        with pytest.warns(DeprecationWarning,
+                          match="alias 'a' was deprecated in NumPy 2.0") as w:
             func()
-        assert len(caught_warnings) == 1
-        w = caught_warnings[0]
-        assert w.category is DeprecationWarning
-        assert "alias 'a' was deprecated in NumPy 2.0" in str(w.message)
+        assert len(w) == 1
 
     def test_a_dtype_alias(self):
         for dtype in ["a", "a10"]:
@@ -393,7 +372,6 @@ class TestDeprecatedDTypeAliases(_DeprecationTestCase):
             self.assert_deprecated(f)
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDeprecatedArrayWrap(_DeprecationTestCase):
     message = "__array_wrap__.*"
 
@@ -418,7 +396,6 @@ class TestDeprecatedArrayWrap(_DeprecationTestCase):
         self.assert_deprecated(lambda: np.negative(test2))
         assert test2.called
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDeprecatedArrayAttributeSetting(_DeprecationTestCase):
     message = "Setting the .*on a NumPy array has been deprecated.*"
 
@@ -427,7 +404,6 @@ class TestDeprecatedArrayAttributeSetting(_DeprecationTestCase):
         self.assert_deprecated(setattr, args=(x, 'strides', x.strides))
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDeprecatedDTypeParenthesizedRepeatCount(_DeprecationTestCase):
     message = "Passing in a parenthesized single number"
 
@@ -436,7 +412,6 @@ class TestDeprecatedDTypeParenthesizedRepeatCount(_DeprecationTestCase):
         self.assert_deprecated(np.dtype, args=(string,))
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDeprecatedSaveFixImports(_DeprecationTestCase):
     # Deprecated in Numpy 2.1, 2024-05
     message = "The 'fix_imports' flag is deprecated and has no effect."
@@ -460,7 +435,6 @@ class TestDeprecatedSaveFixImports(_DeprecationTestCase):
                                             'fix_imports': False})
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestAddNewdocUFunc(_DeprecationTestCase):
     # Deprecated in Numpy 2.2, 2024-11
     def test_deprecated(self):
@@ -478,7 +452,6 @@ class TestAddNewdocUFunc(_DeprecationTestCase):
         )
 
 
-@pytest.mark.thread_unsafe("Test setup & warnings are thread-unsafe?")
 class TestDTypeAlignBool(_VisibleDeprecationTestCase):
     # Deprecated in Numpy 2.4, 2025-07
     # NOTE: As you can see, finalizing this deprecation breaks some (very) old
@@ -499,7 +472,6 @@ class TestDTypeAlignBool(_VisibleDeprecationTestCase):
         self.assert_not_deprecated(lambda: np.dtype("f8", align=align))
 
 
-@pytest.mark.thread_unsafe
 class TestFlatiterIndexing0dBoolIndex(_DeprecationTestCase):
     # Deprecated in Numpy 2.4, 2025-07
     message = r"Indexing flat iterators with a 0-dimensional boolean index"
@@ -518,7 +490,6 @@ class TestFlatiterIndexing0dBoolIndex(_DeprecationTestCase):
         self.assert_deprecated(assign_to_index)
 
 
-@pytest.mark.thread_unsafe
 class TestFlatiterIndexingFloatIndex(_DeprecationTestCase):
     # Deprecated in NumPy 2.4, 2025-07
     message = r"Invalid non-array indices for iterator objects"
@@ -557,7 +528,6 @@ class TestWarningUtilityDeprecations(_DeprecationTestCase):
         self.assert_deprecated(use_suppress_warnings)
 
 
-@pytest.mark.thread_unsafe
 class TestTooManyArgsExtremum(_DeprecationTestCase):
     # Deprecated in Numpy 2.4, 2025-08, gh-27639
     message = "Passing more than 2 positional arguments to np.maximum and np.minimum "
