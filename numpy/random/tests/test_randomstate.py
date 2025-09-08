@@ -169,6 +169,7 @@ class TestMultinomial:
     def test_invalid_n(self):
         assert_raises(ValueError, random.multinomial, -1, [0.8, 0.2])
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_p_non_contiguous(self):
         p = np.arange(15.)
         p /= np.sum(p[1::3])
@@ -349,6 +350,7 @@ class TestRandint:
         assert_(vals.max() < 2)
         assert_(vals.min() >= 0)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_repeatability(self):
         # We use a sha256 hash of generated sequences of 1000 samples
         # in the range [0, 6) for all but bool, where the range
@@ -381,6 +383,7 @@ class TestRandint:
         res = hashlib.sha256(val).hexdigest()
         assert_(tgt[np.dtype(bool).name] == res)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     @pytest.mark.skipif(np.iinfo('l').max < 2**32,
                         reason='Cannot test with 32-bit C long')
     def test_repeatability_32bit_boundary_broadcasting(self):
@@ -450,6 +453,7 @@ class TestRandint:
             assert_equal(type(sample), dt)
 
 
+@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
 class TestRandomDist:
     # Make sure the random distribution returns the correct value for a
     # given seed
@@ -1314,6 +1318,7 @@ class TestRandomDist:
         assert_array_equal(actual, desired)
 
 
+@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
 class TestBroadcast:
     # tests that functions that broadcast behave
     # correctly when presented with non-scalar arguments
@@ -2024,6 +2029,7 @@ def test_integer_dtype(int_func):
     assert_(actual.dtype == np.dtype('l'))
 
 
+@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
 def test_integer_repeat(int_func):
     random.seed(123456789)
     fname, args, sha256 = int_func
@@ -2063,6 +2069,7 @@ def test_randomstate_ctor_old_style_pickle():
     assert_equal(state_a['gauss'], state_b['gauss'])
 
 
+@pytest.mark.thread_unsafe(reason="restore_singleton_bitgen affects global state?")
 def test_hot_swap(restore_singleton_bitgen):
     # GH 21808
     def_bg = np.random.default_rng(0)
@@ -2074,6 +2081,7 @@ def test_hot_swap(restore_singleton_bitgen):
     assert bg is second_bg
 
 
+@pytest.mark.thread_unsafe(reason="restore_singleton_bitgen affects global state?")
 def test_seed_alt_bit_gen(restore_singleton_bitgen):
     # GH 21808
     bg = PCG64(0)
@@ -2088,6 +2096,7 @@ def test_seed_alt_bit_gen(restore_singleton_bitgen):
     assert state["state"]["inc"] != new_state["state"]["inc"]
 
 
+@pytest.mark.thread_unsafe(reason="restore_singleton_bitgen affects global state?")
 def test_state_error_alt_bit_gen(restore_singleton_bitgen):
     # GH 21808
     state = np.random.get_state()
@@ -2097,6 +2106,7 @@ def test_state_error_alt_bit_gen(restore_singleton_bitgen):
         np.random.set_state(state)
 
 
+@pytest.mark.thread_unsafe(reason="restore_singleton_bitgen affects global state?")
 def test_swap_worked(restore_singleton_bitgen):
     # GH 21808
     np.random.seed(98765)
@@ -2115,6 +2125,7 @@ def test_swap_worked(restore_singleton_bitgen):
     assert new_state["state"]["inc"] == new_state["state"]["inc"]
 
 
+@pytest.mark.thread_unsafe(reason="restore_singleton_bitgen affects global state?")
 def test_swapped_singleton_against_direct(restore_singleton_bitgen):
     np.random.set_bit_generator(PCG64(98765))
     singleton_vals = np.random.randint(0, 2 ** 30, 10)

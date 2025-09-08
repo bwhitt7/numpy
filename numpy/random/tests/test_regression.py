@@ -1,5 +1,7 @@
 import sys
 
+import pytest
+
 import numpy as np
 from numpy import random
 from numpy.testing import assert_, assert_array_equal, assert_raises
@@ -46,6 +48,7 @@ class TestRegression:
         msg = f'Frequency was {freq:f}, should be < 0.23'
         assert_(freq < 0.23, msg)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_shuffle_mixed_dimension(self):
         # Test for trac ticket #2074
         for t in [[1, 2, 3, None],
@@ -125,6 +128,7 @@ class TestRegression:
         import gc
         gc.collect()
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_permutation_subclass(self):
         class N(np.ndarray):
             pass

@@ -1173,6 +1173,7 @@ class TestGradient:
         np.gradient(x2, edge_order=2)
         assert_array_equal(x2.mask, [False, False, True, False, False])
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_second_order_accurate(self):
         # Testing that the relative numerical error is less that 3% for
         # this example problem. This corresponds to second order
@@ -2056,6 +2057,7 @@ class TestLeaks:
             ('bound', A.iters),
             ('unbound', 0),
             ])
+    @pytest.mark.thread_unsafe(reason="sys.getrefcount()")
     def test_frompyfunc_leaks(self, name, incr):
         # exposed in gh-11867 as np.vectorized, but the problem stems from
         # frompyfunc.
@@ -3966,6 +3968,7 @@ class TestQuantile:
                        shape=st.integers(min_value=3, max_value=1000),
                        elements=st.floats(allow_infinity=False, allow_nan=False,
                                           min_value=-1e300, max_value=1e300)))
+    @pytest.mark.thread_unsafe(reason="Test gives unreliable results w/ hypothesis")
     def test_quantile_monotonic_hypo(self, arr):
         p0 = np.arange(0, 1, 0.01)
         quantile = np.quantile(arr, p0)

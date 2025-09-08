@@ -452,6 +452,7 @@ def test_roundtrip_truncated():
         if arr.dtype != object:
             assert_raises(ValueError, roundtrip_truncated, arr)
 
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_file_truncated(tmp_path):
     path = tmp_path / "a.npy"
     for arr in basic_arrays:
@@ -486,6 +487,7 @@ def test_long_str():
 
 @pytest.mark.skipif(IS_WASM, reason="memmap doesn't work correctly")
 @pytest.mark.slow
+@pytest.mark.thread_unsafe(reason="tmpdir & memmap are thread-unsafe (gh-29126)")
 def test_memmap_roundtrip(tmpdir):
     for i, arr in enumerate(basic_arrays + record_arrays):
         if arr.dtype.hasobject:
@@ -516,6 +518,7 @@ def test_memmap_roundtrip(tmpdir):
         ma.flush()
 
 
+@pytest.mark.thread_unsafe(reason="tmpdir is thread-unsafe")
 def test_compressed_roundtrip(tmpdir):
     arr = np.random.rand(200, 200)
     npz_file = os.path.join(tmpdir, 'compressed.npz')
@@ -541,6 +544,7 @@ dt5 = np.dtype({'names': ['a', 'b'], 'formats': ['i4', 'i4'],
 dt6 = np.dtype({'names': [], 'formats': [], 'itemsize': 8})
 
 @pytest.mark.parametrize("dt", [dt1, dt2, dt3, dt4, dt5, dt6])
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_load_padded_dtype(tmpdir, dt):
     arr = np.zeros(3, dt)
     for i in range(3):
@@ -611,6 +615,7 @@ def test_pickle_python2_python3():
                               encoding='latin1')
 
 
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_pickle_disallow(tmpdir):
     data_dir = os.path.join(os.path.dirname(__file__), 'data')
 
@@ -708,6 +713,7 @@ def test_version_2_0():
 
 
 @pytest.mark.skipif(IS_WASM, reason="memmap doesn't work correctly")
+@pytest.mark.thread_unsafe(reason="tmpdir & memmap are thread-unsafe (gh-29126)")
 def test_version_2_0_memmap(tmpdir):
     # requires more than 2 byte for header
     dt = [(("%d" % i) * 100, float) for i in range(500)]
@@ -739,6 +745,7 @@ def test_version_2_0_memmap(tmpdir):
     assert_array_equal(ma, d)
 
 @pytest.mark.parametrize("mmap_mode", ["r", None])
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_huge_header(tmpdir, mmap_mode):
     f = os.path.join(tmpdir, 'large_header.npy')
     arr = np.array(1, dtype="i," * 10000 + "i")
@@ -758,6 +765,7 @@ def test_huge_header(tmpdir, mmap_mode):
     res = np.load(f, mmap_mode=mmap_mode, max_header_size=180000)
     assert_array_equal(res, arr)
 
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_huge_header_npz(tmpdir):
     f = os.path.join(tmpdir, 'large_header.npz')
     arr = np.array(1, dtype="i," * 10000 + "i")
@@ -928,6 +936,7 @@ def test_bad_header():
     assert_raises(ValueError, format.read_array_header_1_0, s)
 
 
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_large_file_support(tmpdir):
     if (sys.platform == 'win32' or sys.platform == 'cygwin'):
         pytest.skip("Unknown if Windows has sparse filesystems")
@@ -957,6 +966,8 @@ def test_large_file_support(tmpdir):
 @pytest.mark.skipif(not IS_64BIT, reason="test requires 64-bit system")
 @pytest.mark.slow
 @requires_memory(free_bytes=2 * 2**30)
+@pytest.mark.thread_unsafe(reason="tmpdir is thread-unsafe, memory issues")
+# also mark with small number of parallel threads
 def test_large_archive(tmpdir):
     # Regression test for product of saving arrays with dimensions of array
     # having a product that doesn't fit in int32.  See gh-7598 for details.
@@ -979,6 +990,7 @@ def test_large_archive(tmpdir):
     assert new_a.shape == shape
 
 
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_empty_npz(tmpdir):
     # Test for gh-9989
     fname = os.path.join(tmpdir, "nothing.npz")
@@ -987,6 +999,7 @@ def test_empty_npz(tmpdir):
         pass
 
 
+@pytest.mark.thread_unsafe(reason="tmp_path is thread-unsafe")
 def test_unicode_field_names(tmpdir):
     # gh-7391
     arr = np.array([
@@ -1010,6 +1023,7 @@ def test_unicode_field_names(tmpdir):
         with pytest.warns(UserWarning):
             format.write_array(f, arr, version=None)
 
+
 def test_header_growth_axis():
     for is_fortran_array, dtype_space, expected_header_length in [
         [False, 22, 128], [False, 23, 192], [True, 23, 128], [True, 24, 192]
@@ -1023,6 +1037,7 @@ def test_header_growth_axis():
             })
 
             assert len(fp.getvalue()) == expected_header_length
+
 
 @pytest.mark.parametrize('dt', [
     np.dtype({'names': ['a', 'b'], 'formats':  [float, np.dtype('S3',

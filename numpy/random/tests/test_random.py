@@ -226,6 +226,7 @@ class TestRandint:
         assert_(vals.max() < 2)
         assert_(vals.min() >= 0)
 
+    @pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
     def test_repeatability(self):
         import hashlib
         # We use a sha256 hash of generated sequences of 1000 samples
@@ -302,6 +303,7 @@ class TestRandint:
             assert_equal(type(sample), dt)
 
 
+@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
 class TestRandomDist:
     # Make sure the random distribution returns the correct value for a
     # given seed
@@ -1054,6 +1056,7 @@ class TestRandomDist:
         assert_array_equal(actual, desired)
 
 
+@pytest.mark.thread_unsafe(reason="np.random.seed() is global state")
 class TestBroadcast:
     # tests that functions that broadcast behave
     # correctly when presented with non-scalar arguments

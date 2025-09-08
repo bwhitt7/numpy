@@ -1146,6 +1146,7 @@ class TestArrayAssertLess:
 @pytest.mark.filterwarnings(
     "ignore:.*NumPy warning suppression and assertion utilities are deprecated"
     ".*:DeprecationWarning")
+@pytest.mark.thread_unsafe(reason="Checks global module? warnings are global state?")
 class TestWarns:
 
     def test_warn(self):
@@ -1760,6 +1761,7 @@ def _get_fresh_mod():
     return my_mod
 
 
+@pytest.mark.thread_unsafe(reason="Checks global module? warnings are global state?")
 def test_clear_and_catch_warnings():
     # Initial state of module, no warnings
     my_mod = _get_fresh_mod()
@@ -1795,6 +1797,7 @@ def test_clear_and_catch_warnings():
 @pytest.mark.filterwarnings(
     "ignore:.*NumPy warning suppression and assertion utilities are deprecated"
     ".*:DeprecationWarning")
+@pytest.mark.thread_unsafe(reason="Checks global module? warnings are global state?")
 def test_suppress_warnings_module():
     # Initial state of module, no warnings
     my_mod = _get_fresh_mod()
@@ -1844,6 +1847,7 @@ def test_suppress_warnings_module():
 @pytest.mark.filterwarnings(
     "ignore:.*NumPy warning suppression and assertion utilities are deprecated"
     ".*:DeprecationWarning")
+@pytest.mark.thread_unsafe(reason="Checks global module? warnings are global state?")
 def test_suppress_warnings_type():
     # Initial state of module, no warnings
     my_mod = _get_fresh_mod()
@@ -1875,6 +1879,7 @@ def test_suppress_warnings_type():
 @pytest.mark.filterwarnings(
     "ignore:.*NumPy warning suppression and assertion utilities are deprecated"
     ".*:DeprecationWarning")
+@pytest.mark.thread_unsafe(reason="warnings are global state?")
 def test_suppress_warnings_decorate_no_record():
     sup = suppress_warnings()
     sup.filter(UserWarning)
@@ -1893,6 +1898,7 @@ def test_suppress_warnings_decorate_no_record():
 @pytest.mark.filterwarnings(
     "ignore:.*NumPy warning suppression and assertion utilities are deprecated"
     ".*:DeprecationWarning")
+@pytest.mark.thread_unsafe(reason="warnings are global state?")
 def test_suppress_warnings_record():
     sup = suppress_warnings()
     log1 = sup.record()
@@ -1937,6 +1943,7 @@ def test_suppress_warnings_record():
 @pytest.mark.filterwarnings(
     "ignore:.*NumPy warning suppression and assertion utilities are deprecated"
     ".*:DeprecationWarning")
+@pytest.mark.thread_unsafe(reason="warnings are global state?")
 def test_suppress_warnings_forwarding():
     def warn_other_module():
         # Apply along axis is implemented in python; stacklevel=2 means
@@ -2039,6 +2046,7 @@ def test_clear_and_catch_warnings_inherit():
 class TestAssertNoGcCycles:
     """ Test assert_no_gc_cycles """
 
+    @pytest.mark.thread_unsafe(reason="assert_no_gc_cycles?")
     def test_passes(self):
         def no_cycle():
             b = []

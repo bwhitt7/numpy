@@ -11,6 +11,7 @@ from numpy.f2py.crackfortran import (
 from . import util
 
 
+@pytest.mark.thread_unsafe()
 class TestKind(util.F2PyTest):
     sources = [util.getpath("tests", "src", "kind", "foo.f90")]
 

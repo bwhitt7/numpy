@@ -15,6 +15,7 @@ class TestBlockDocString(util.F2PyTest):
                         reason="Fails with MinGW64 Gfortran (Issue #9673)")
     @pytest.mark.xfail(IS_PYPY,
                        reason="PyPy cannot modify tp_doc after PyType_Ready")
+    @pytest.mark.thread_unsafe()
     def test_block_docstring(self):
         expected = "bar : 'i'-array(2,3)\n"
         assert self.module.block.__doc__ == expected
