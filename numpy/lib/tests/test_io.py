@@ -1735,7 +1735,6 @@ M   33  21.99
             test = np.genfromtxt(TextIO(data), delimiter=";",
                                  dtype=ndtype, converters=converters)
 
-    @pytest.mark.thread_unsafe(reason="global state with np.genfromtext()?")
     def test_dtype_with_object_no_converter(self):
         # Object without a converter uses bytes:
         parsed = np.genfromtxt(TextIO("1"), dtype=object)
