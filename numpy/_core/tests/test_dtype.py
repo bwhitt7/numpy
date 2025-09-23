@@ -1324,6 +1324,7 @@ class TestDTypeMakeCanonical:
         assert np.can_cast(two_arg_result, canonical, casting="no")
 
     @pytest.mark.slow
+    @pytest.mark.thread_unsafe(reason="gives unreliable results w/ hypothesis")
     @hypothesis.given(
             dtype=hypothesis.extra.numpy.array_dtypes(
                 subtype_strategy=hypothesis.extra.numpy.array_dtypes(),
@@ -1917,6 +1918,7 @@ class TestFromCTypes:
 
 class TestUserDType:
     @pytest.mark.leaks_references(reason="dynamically creates custom dtype.")
+    @pytest.mark.thread_unsafe(reason="crashes when GIL disabled")
     def test_custom_structured_dtype(self):
         class mytype:
             pass
@@ -1937,6 +1939,7 @@ class TestUserDType:
             del a
             assert sys.getrefcount(o) == startcount
 
+    @pytest.mark.thread_unsafe(reason="crashes when GIL disabled")
     def test_custom_structured_dtype_errors(self):
         class mytype:
             pass

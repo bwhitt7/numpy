@@ -75,6 +75,7 @@ class TestFFT1D:
             assert check_via_r.dtype == x.dtype
             assert_allclose(check_via_r, yy[0:n], atol=atol, rtol=0)
 
+    #@pytest.mark.thread_unsafe(reason="Fails sometimes")
     def test_fft(self):
         x = random(30) + 1j * random(30)
         assert_allclose(fft1(x), np.fft.fft(x), atol=1e-6)
