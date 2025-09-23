@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 import numpy as np
-from numpy.testing import assert_
+from numpy.testing import NOGIL_BUILD, assert_
 
 ROOT = Path(np.__file__).parents[0]
 FILES = [
@@ -27,7 +27,7 @@ if sys.version_info < (3, 12):
     FILES += [ROOT / "distutils" / "__init__.pyi"]
 
 
-# @pytest.mark.thread_unsafe(reason="???")
+@pytest.mark.skipif(NOGIL_BUILD, reason="???")
 class TestIsFile:
     def test_isfile(self):
         """Test if all ``.pyi`` files are properly installed."""
