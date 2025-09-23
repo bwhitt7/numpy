@@ -27,7 +27,7 @@ if sys.version_info < (3, 12):
     FILES += [ROOT / "distutils" / "__init__.pyi"]
 
 
-@pytest.mark.skipif(NOGIL_BUILD, reason="???")
+@pytest.mark.thread_unsafe(reason="os.path has a thread-safety bug")
 class TestIsFile:
     def test_isfile(self):
         """Test if all ``.pyi`` files are properly installed."""
