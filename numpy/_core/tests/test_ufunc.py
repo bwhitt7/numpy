@@ -3240,7 +3240,7 @@ class TestLowlevelAPIAccess:
 
     @pytest.mark.skipif(not hasattr(ct, "pythonapi"),
             reason="`ctypes.pythonapi` required for capsule unpacking.")
-    #@pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="???")
     def test_loop_access(self):
         # This is a basic test for the full strided loop access
         data_t = ct.c_char_p * 2
