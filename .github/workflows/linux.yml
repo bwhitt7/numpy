@@ -384,7 +384,7 @@ jobs:
         pip install -e . --no-build-isolation
     - name: Run full test suite
       run: |
-        pytest numpy --durations=10 --cov-report=html:build/coverage --parallel-threads=10
+        pytest numpy --durations=10 --cov-report=html:build/coverage --parallel-threads=10 --skip-thread-unsafe=1
         # TODO: gcov
       env:
         PYTHONOPTIMIZE: 2
