@@ -356,7 +356,7 @@ jobs:
   parallel_test:
     # Install as editable, then run the full test suite with code coverage
     needs: [smoke_test]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     # if: github.repository == 'numpy/numpy'
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
