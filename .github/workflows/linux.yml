@@ -368,6 +368,7 @@ jobs:
       run: |
         pip install -r requirements/build_requirements.txt
         pip install -r requirements/test_requirements.txt
+        pip install pytest-run-parallel
     - name: Install gfortran and setup OpenBLAS (MacPython build)
       run: |
         set -xe
