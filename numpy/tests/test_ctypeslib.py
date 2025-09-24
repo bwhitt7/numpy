@@ -124,7 +124,7 @@ class TestNdpointer:
         assert_(p.from_param(x))
         assert_raises(TypeError, p.from_param, np.array([[1, 2], [3, 4]]))
 
-    @pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="ndpointer thread-unsafe with cache")
     def test_cache(self):
         assert_(ndpointer(dtype=np.float64) is ndpointer(dtype=np.float64))
 
@@ -179,7 +179,7 @@ class TestNdpointerCFunc:
             arr.__array_interface__['data']
         )
 
-    @pytest.mark.thread_unsafe(reason="???")
+    # @pytest.mark.thread_unsafe(reason="???")
     def test_vague_return_value(self):
         """ Test that vague ndpointer return values do not promote to arrays """
         arr = np.zeros((2, 3))
