@@ -58,8 +58,7 @@ jobs:
       MESON_ARGS: "-Dallow-noblas=true -Dcpu-baseline=none -Dcpu-dispatch=none"
     strategy:
       matrix:
-        version: ["3.14t-dev"]
-        #version: ["3.11", "3.12", "3.13", "3.14-dev", "3.14t-dev"]
+        version: ["3.11", "3.12", "3.13", "3.14-dev", "3.14t-dev"]
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       with:
@@ -354,7 +353,7 @@ jobs:
         python tools/check_installed_files.py $(find ./build-install -path '*/site-packages/numpy') --no-tests
 
   parallel_test:
-    # Install as editable, then run the full test suite with code coverage
+    # Install with spin and run thread-safe tests under pytest-run-parallel
     needs: [smoke_test]
     runs-on: ubuntu-latest
     # if: github.repository == 'numpy/numpy'
@@ -364,8 +363,6 @@ jobs:
         submodules: recursive
         fetch-tags: true
         persist-credentials: false
-    # - name: Setup tmate session
-    #   uses: mxschmitt/action-tmate@v3
     - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c # v6.0.0
       with:
         python-version: '3.14t-dev'
@@ -377,6 +374,6 @@ jobs:
     - name: Build and install NumPy
       run: |
         spin build
-    - name: Run full test suite
+    - name: Run thread-safe tests under pytest-run-parallel
       run: |
         spin test -- --parallel-threads=4 --skip-thread-unsafe=1
