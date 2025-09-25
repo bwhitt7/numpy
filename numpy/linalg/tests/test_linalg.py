@@ -391,7 +391,6 @@ class LinalgTestCase:
 
 
 class LinalgSquareTestCase(LinalgTestCase):
-    @pytest.mark.thread_unsafe(reason="fails in CI")
     def test_sq_cases(self):
         self.check_cases(require={'square'},
                          exclude={'generalized', 'size-0'})
@@ -1854,7 +1853,6 @@ class TestQR:
     @pytest.mark.parametrize("dt", [
         np.single, np.double,
         np.csingle, np.cdouble])
-    @pytest.mark.thread_unsafe(reason="fails in CI")
     def test_stacked_inputs(self, outer_size, size, dt):
 
         rng = np.random.default_rng(123)
