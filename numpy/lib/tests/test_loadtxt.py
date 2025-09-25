@@ -1078,7 +1078,6 @@ def test_maxrows_exceeding_chunksize(nmax):
     assert len(res) == nmax
 
 @pytest.mark.parametrize("nskip", (0, 10000, 12345, 50000, 67891, 100000))
-@pytest.mark.thread_unsafe(reason="tmpdir is thread-unsafe")
 def test_skiprow_exceeding_maxrows_exceeding_chunksize(tmpdir, nskip):
     # tries to read a file in chunks by skipping a variable amount of lines,
     # less, equal, greater than max_rows

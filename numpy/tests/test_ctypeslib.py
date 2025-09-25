@@ -124,7 +124,7 @@ class TestNdpointer:
         assert_(p.from_param(x))
         assert_raises(TypeError, p.from_param, np.array([[1, 2], [3, 4]]))
 
-    @pytest.mark.thread_unsafe(reason="ndpointer thread-unsafe with cache")
+    @pytest.mark.thread_unsafe(reason="checks that global ndpointer cache is updating")
     def test_cache(self):
         assert_(ndpointer(dtype=np.float64) is ndpointer(dtype=np.float64))
 
@@ -179,7 +179,7 @@ class TestNdpointerCFunc:
             arr.__array_interface__['data']
         )
 
-    # @pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="mutates global test vars")
     def test_vague_return_value(self):
         """ Test that vague ndpointer return values do not promote to arrays """
         arr = np.zeros((2, 3))
@@ -305,7 +305,7 @@ class TestAsCtypesType:
         ct = np.ctypeslib.as_ctypes_type(dt)
         assert_equal(ct, ctypes.c_uint16)
 
-    @pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="some sort of data race?")
     def test_subarray(self):
         dt = np.dtype((np.int32, (2, 3)))
         ct = np.ctypeslib.as_ctypes_type(dt)
@@ -325,7 +325,7 @@ class TestAsCtypesType:
             ('b', ctypes.c_uint32),
         ])
 
-    @pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="some sort of data race?")
     def test_structure_aligned(self):
         dt = np.dtype([
             ('a', np.uint16),
@@ -356,7 +356,7 @@ class TestAsCtypesType:
             ('b', ctypes.c_uint32),
         ])
 
-    @pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="some sort of data race?")
     def test_padded_union(self):
         dt = np.dtype({
             'names': ['a', 'b'],
