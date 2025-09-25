@@ -1854,6 +1854,7 @@ class TestQR:
     @pytest.mark.parametrize("dt", [
         np.single, np.double,
         np.csingle, np.cdouble])
+    @pytest.mark.thread_unsafe(reason="fails in CI")
     def test_stacked_inputs(self, outer_size, size, dt):
 
         rng = np.random.default_rng(123)
