@@ -374,23 +374,9 @@ jobs:
         pip install -r requirements/build_requirements.txt
         pip install -r requirements/test_requirements.txt
         pip install pytest-run-parallel
-    - name: Install gfortran and setup OpenBLAS (MacPython build)
+    - name: Build and install NumPy
       run: |
-        set -xe
-        sudo apt update
-        sudo apt install gfortran libgfortran5
-        python -m pip install -r requirements/ci32_requirements.txt
-        mkdir -p ./.openblas
-        python -c"import scipy_openblas32 as ob32; print(ob32.get_pkg_config())" > ./.openblas/scipy-openblas.pc
-
-    - name: Install as editable
-      env:
-        PKG_CONFIG_PATH: ${{ github.workspace }}/.openblas
-      run: |
-        pip install -e . --no-build-isolation
+        spin build
     - name: Run full test suite
       run: |
-        pytest numpy --cov-report=html:build/coverage --parallel-threads=4 --skip-thread-unsafe=1
-        # TODO: gcov
-      env:
-        PYTHONOPTIMIZE: 2
+        spin test -- --parallel-threads=4 --skip-thread-unsafe=1
