@@ -179,7 +179,7 @@ class TestNdpointerCFunc:
             arr.__array_interface__['data']
         )
 
-    # @pytest.mark.thread_unsafe(reason="???")
+    @pytest.mark.thread_unsafe(reason="ndpointer is thread-unsafe")
     def test_vague_return_value(self):
         """ Test that vague ndpointer return values do not promote to arrays """
         arr = np.zeros((2, 3))

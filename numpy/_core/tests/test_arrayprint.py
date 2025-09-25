@@ -532,6 +532,7 @@ class TestArray2String:
             '                     [1.]])]], dtype=object)'
         )
 
+    @pytest.mark.thread_unsafe
     @given(hynp.from_dtype(np.dtype("U")))
     def test_any_text(self, text):
         # This test checks that, given any value that can be represented in an
