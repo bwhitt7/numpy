@@ -69,7 +69,8 @@ jobs:
       with:
         python-version: ${{ matrix.version }}
     - uses: ./.github/meson_actions
-    - if: ${{ matrix.verson }} == "3.14t-dev"
+    - name: Run parallel tests 
+      if: ${{ matrix.version }} == "3.14t-dev"
       run: |
         pip install pytest-run-parallel
         spin test -- --parallel-threads=4 --skip-thread-unsafe=1
