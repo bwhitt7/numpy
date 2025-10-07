@@ -9,7 +9,7 @@ on:
   push:
     branches:
       # coverage comparison in the "full" step needs to run on main after merges
-      - ci_edit2
+      - ci_edits2
   pull_request:
     branches:
       - main
