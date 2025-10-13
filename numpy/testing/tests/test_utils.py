@@ -2059,6 +2059,7 @@ class TestAssertNoGcCycles:
 
         assert_no_gc_cycles(no_cycle)
 
+    @pytest.mark.thread_unsafe(reason="garbage collector is global state")
     def test_asserts(self):
         def make_cycle():
             a = []
