@@ -389,9 +389,9 @@ class LinalgTestCase:
                 msg += traceback.format_exc()
                 raise AssertionError(msg) from e
 
-@pytest.mark.thread_unsafe(
-    reason="residuals not calculated properly for square tests (gh-29851)"
-)
+# @pytest.mark.thread_unsafe(
+#     reason="residuals not calculated properly for square tests (gh-29851)"
+# )
 class LinalgSquareTestCase(LinalgTestCase):
 
     def test_sq_cases(self):
