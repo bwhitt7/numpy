@@ -9,7 +9,7 @@ on:
   push:
     branches:
       # coverage comparison in the "full" step needs to run on main after merges
-      - ci_edits2
+      - main
   pull_request:
     branches:
       - main
@@ -29,7 +29,7 @@ permissions:
 jobs:
   lint:
     # To enable this job and subsequent jobs on a fork, comment out:
-    # if: github.repository == 'numpy/numpy' && github.event_name != 'push'
+    if: github.repository == 'numpy/numpy' && github.event_name != 'push'
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:
@@ -52,7 +52,7 @@ jobs:
 
   smoke_test:
     # To enable this job on a fork, comment out:
-    # if: github.repository == 'numpy/numpy'
+    if: github.repository == 'numpy/numpy'
     runs-on: ubuntu-latest
     env:
       MESON_ARGS: "-Dallow-noblas=true -Dcpu-baseline=none -Dcpu-dispatch=none"
@@ -69,11 +69,6 @@ jobs:
       with:
         python-version: ${{ matrix.version }}
     - uses: ./.github/meson_actions
-    - name: Run parallel tests 
-      if: matrix.version == '3.14t-dev'
-      run: |
-        pip install pytest-run-parallel
-        spin test -- --parallel-threads=4 --skip-thread-unsafe=1
 
   pypy:
     needs: [smoke_test]
@@ -166,7 +161,7 @@ jobs:
     # Tests NumPy on 32-bit ARM hard-float (armhf) via compatibility mode
     # running on aarch64 (ARM 64-bit) GitHub runners.
     needs: [smoke_test]
-    # if: github.repository == 'numpy/numpy'
+    if: github.repository == 'numpy/numpy'
     runs-on: ubuntu-22.04-arm
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

@@ -1,6 +1,9 @@
 name: macOS tests
 
 on:
+  push:
+    branches:
+      - ci_edits2
   pull_request:
     branches:
       - main
@@ -107,7 +110,7 @@ jobs:
   accelerate:
     name: Accelerate - ${{ matrix.build_runner[1] }} - ${{ matrix.version }}
     # To enable this workflow on a fork, comment out:
-    if: github.repository == 'numpy/numpy'
+    #if: github.repository == 'numpy/numpy'
     runs-on: ${{ matrix.build_runner[0] }}
     strategy:
       fail-fast: false
@@ -151,4 +154,9 @@ jobs:
         spin build -- -Duse-ilp64=true -Ddisable-optimization=true -Dallow-noblas=false
 
     - name: Test (fast tests)
+      if: ${{ (matrix.version != "3.14t-dev") || (matrix.build_runner[0] != 'macos-14') }}
       run: spin test -j2 -- --timeout=600 --durations=10
+    
+    - name: Test in multiple threads
+      if: ${{ (matrix.version == "3.14t-dev") && (matrix.build_runner[0] == 'macos-14') }}
+      run: spin test -- --parallel-threads=4 --skip-thread-unsafe=1 --timeout=600 --durations=10
